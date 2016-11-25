@@ -9,21 +9,22 @@ class NoPathExistsException(Exception):
 class MazeAnalysis:
 
     def __init__(self, maze):
-        maze = np.array(maze)
+        if type(maze).__module__ != np.__name__:  # if not numpy matrix, make it numpy matrix
+            maze = np.array(maze)
         self.distances = np.full(maze.shape, -1, dtype='int16')
         self.directions = np.full(maze.shape, b' ', dtype=('a', 1))
         indices = np.where(maze == 1)
         goals = list(zip(indices[0], indices[1]))
-        stopen = deque()
+        stack_open = deque()
         shape = maze.shape
         for goal in goals:
             self.distances[goal] = 0
             self.directions[goal] = b'X'
-            stopen.append((goal, 0))
+            stack_open.append((goal, 0))
         dir_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         dir_chars = [b'^', b'v',b'<', b'>']
-        while stopen:
-            (x, y), distance = stopen.popleft()
+        while stack_open:
+            (x, y), distance = stack_open.popleft()
             distance += 1
             for i in range(4):
                 offset_x, offset_y = dir_offsets[i]
@@ -33,7 +34,7 @@ class MazeAnalysis:
                         if self.distances[new_place] == -1:
                             self.distances[new_place] = distance
                             self.directions[new_place] = dir_chars[i]
-                            stopen.append((new_place, distance))
+                            stack_open.append((new_place, distance))
                     else:
                         self.directions[new_place] = b'#'
         self.is_reachable = (self.directions != b' ') & (self.directions != b'#')
