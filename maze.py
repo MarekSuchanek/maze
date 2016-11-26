@@ -13,6 +13,7 @@ class MazeAnalysis:
             maze = np.array(maze)
         self.distances = np.full(maze.shape, -1, dtype='int16')
         self.directions = np.full(maze.shape, b' ', dtype=('a', 1))
+        np.place(self.directions, maze < 0, b'#')
         indices = np.where(maze == 1)
         goals = list(zip(indices[0], indices[1]))
         stack_open = deque()
@@ -30,13 +31,10 @@ class MazeAnalysis:
                 offset_x, offset_y = dir_offsets[i]
                 new_place = x + offset_x, y + offset_y
                 if 0 <= new_place[0] < shape[0] and 0 <= new_place[1] < shape[1]:
-                    if maze[new_place] > 0:
-                        if self.distances[new_place] == -1:
+                    if maze[new_place] >= 0 and self.distances[new_place] == -1:
                             self.distances[new_place] = distance
                             self.directions[new_place] = dir_chars[i]
                             stack_open.append((new_place, distance))
-                    else:
-                        self.directions[new_place] = b'#'
         self.is_reachable = (self.directions != b' ') & (self.directions != b'#')
 
     def path(self, row, column):
