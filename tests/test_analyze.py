@@ -6,6 +6,11 @@ from maze import analyze
 mazes_path = "tests/fixtures/mazes/{0}/{1:02d}.csv"
 
 
+def inside(coords, matrix):
+    return 0 <= coords[0] < matrix.shape[0] and \
+           0 <= coords[1] < matrix.shape[1]
+
+
 def verify_matrices(maze, analysis):
     maze = np.atleast_2d(maze)
     dir_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -25,8 +30,7 @@ def verify_matrices(maze, analysis):
             for i in range(4):
                 ox, oy = dir_offsets[i]
                 new_place = x + ox, y + oy
-                if 0 <= new_place[0] < maze.shape[0] and \
-                   0 <= new_place[1] < maze.shape[1]:
+                if inside(new_place, maze):
                     assert analysis.directions[new_place] == b' ' or \
                            analysis.directions[new_place] == b'#', \
                            "Not really unreachable field"
@@ -36,9 +40,7 @@ def verify_matrices(maze, analysis):
             for i in range(4):
                 ox, oy = dir_offsets[i]
                 new_place = x + ox, y + oy
-                if 0 <= new_place[0] < maze.shape[0] and \
-                   0 <= new_place[1] < maze.shape[1] and \
-                   maze[new_place] >= 0:
+                if inside(new_place, maze) and maze[new_place] >= 0:
                     next = analysis.distances[x][y] - 1 == analysis.distances[new_place]
                     prev = analysis.distances[x][y] + 1 == analysis.distances[new_place]
                     same = analysis.distances[x][y] == analysis.distances[new_place]
@@ -73,9 +75,10 @@ def load_maze(type, number):
 
 
 @pytest.mark.parametrize('mtype,number', [
-    ('simple', 1), ('simple', 2), ('simple', 3),
+    ('simple', 1), ('simple', 2), ('simple', 3), ('simple', 4),
     ('bounds', 1), ('bounds', 2), ('bounds', 3), ('bounds', 4),
-    ('multigoal', 1), ('multigoal', 2), ('multigoal', 3), ('multigoal', 4)
+    ('multigoal', 1), ('multigoal', 2), ('multigoal', 3), ('multigoal', 4),
+    ('unreachable', 1), ('unreachable', 2)
 ])
 def test_analysis(mtype, number):
     maze = load_maze(mtype, number)
