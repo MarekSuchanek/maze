@@ -41,7 +41,9 @@ def verify_matrices(maze, analysis):
                    maze[new_place] >= 0:
                     next = analysis.distances[x][y] - 1 == analysis.distances[new_place]
                     prev = analysis.distances[x][y] + 1 == analysis.distances[new_place]
-                    assert next or prev, "Neighboring field differs by more than 1 step"
+                    same = analysis.distances[x][y] == analysis.distances[new_place]
+                    assert next or prev or same, \
+                        "Neighboring field differs by more than 1 step"
                     if next:
                         distance_correct = True
                         if not direction_correct:
