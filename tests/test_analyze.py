@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from maze import analyze
+from maze import analyze, NoPathExistsException
 
 
 mazes_path = "tests/fixtures/mazes/{0}/{1:02d}.csv"
@@ -55,16 +55,18 @@ def verify_matrices(maze, analysis):
             assert analysis.is_reachable[x][y], "Reachable field is unreachable"
 
 
-def verify_path(maze, analysis,path):
-    length = len(path)
-    last = path.pop()
+def verify_path(maze, analysis, row, column):
+    path = analysis.path(row, column)
+    last = path.pop(0)
+    assert analysis.distances[last] == len(path), "Path length not corresponding to distance"
     assert maze[last] >= 0, "Path via wall"
-    assert analysis.distances[last] == length, "Path length not corresponding to distance"
-    for act in path:
-        assert abs(last[0]-act[0]) == 1 ^ abs(last[1]-act[1]) == 1
+    assert last[0] == row, "Wrong start row coord"
+    assert last[1] == column, "Wrong start column coord"
+    while len(path) > 0:
+        act = path.pop(0)
+        assert (abs(last[0]-act[0]) == 1) ^ (abs(last[1]-act[1])) == 1, "Path contains too big or too small step"
         assert maze[act] >= 0, "Path via wall"
-        length -= 1
-        assert analysis.distances[act] == length, "Path length not corresponding to distance"
+        assert analysis.distances[act] == len(path), "Path length not corresponding to distance"
         last = act
     assert maze[last] == 1, "Does not lead to goal"
 
@@ -86,10 +88,24 @@ def test_analysis(mtype, number):
     verify_matrices(maze, analysis)
 
 
-def test_paths():
-    pass
+@pytest.mark.parametrize('mtype,number,row,column', [
+    ('simple', 1, 1, 0), ('simple', 1, 1, 4), ('simple', 1, 3, 1),
+    ('multigoal', 4, 0, 0), ('multigoal', 4, 3, 0)
+])
+def test_paths(mtype, number, row, column):
+    maze = load_maze(mtype, number)
+    analysis = analyze(maze)
+    verify_path(maze, analysis, row, column)
 
 
-def test_paths_exception():
-    pass
+@pytest.mark.parametrize('mtype,number,row,column', [
+    ('simple', 1, 0, 0), ('multigoal', 4, 4, 0),
+    ('unreachable', 1, 0, 0), ('unreachable', 2, 1, 1),
+])
+def test_paths_exception(mtype, number, row, column):
+    maze = load_maze(mtype, number)
+    analysis = analyze(maze)
+    with pytest.raises(NoPathExistsException):
+        analysis.path(row, column)
 
+# TODO: better loading of mazes from files (parametric fixture?)
