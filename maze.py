@@ -11,6 +11,7 @@ class MazeAnalysis:
     def __init__(self, maze):
         if type(maze).__module__ != np.__name__:  # if not numpy matrix, make it numpy matrix
             maze = np.array(maze)
+        maze = np.atleast_2d(maze)
         self.distances = np.full(maze.shape, -1, dtype='int16')
         self.directions = np.full(maze.shape, b' ', dtype=('a', 1))
         np.place(self.directions, maze < 0, b'#')

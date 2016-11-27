@@ -7,6 +7,7 @@ mazes_path = "tests/fixtures/mazes/{0}/{1:02d}.csv"
 
 
 def verify_matrices(maze, analysis):
+    maze = np.atleast_2d(maze)
     dir_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
     dir_chars = [b'v', b'^',b'>', b'<']
     for x, y in np.ndindex(maze.shape):
@@ -69,13 +70,13 @@ def load_maze(type, number):
     return np.loadtxt(fname, delimiter=',')
 
 
-@pytest.mark.parametrize('type,number', [
+@pytest.mark.parametrize('mtype,number', [
     ('simple', 1), ('simple', 2), ('simple', 3),
     ('bounds', 1), ('bounds', 2), ('bounds', 3), ('bounds', 4),
     ('multigoal', 1), ('multigoal', 2), ('multigoal', 3), ('multigoal', 4)
 ])
-def test_analysis(type, number):
-    maze = load_maze(type, number)
+def test_analysis(mtype, number):
+    maze = load_maze(mtype, number)
     analysis = analyze(maze)
     verify_matrices(maze, analysis)
 
