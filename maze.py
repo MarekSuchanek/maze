@@ -36,10 +36,10 @@ class MazeAnalysis:
                             self.distances[new_place] = distance
                             self.directions[new_place] = dir_chars[i]
                             stack_open.append((new_place, distance))
-        self.is_reachable = (self.directions != b' ') & (self.directions != b'#')
+        self.is_reachable = not (self.directions == b' ').any()
 
     def path(self, row, column):
-        if not self.is_reachable[row][column]:
+        if self.distances[row][column] < 0:
             raise NoPathExistsException
         dir_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         dir_chars = [b'v', b'^',b'>', b'<']

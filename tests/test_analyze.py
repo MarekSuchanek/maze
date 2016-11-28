@@ -15,25 +15,25 @@ def verify_matrices(maze, analysis):
     maze = np.atleast_2d(maze)
     dir_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
     dir_chars = [b'v', b'^',b'>', b'<']
+    is_reachable = True
     for x, y in np.ndindex(maze.shape):
         if maze[x][y] < 0:
             assert analysis.distances[x][y] == -1, "Wall with distance"
             assert analysis.directions[x][y] == b'#', "Wall with direction"
-            assert not analysis.is_reachable[x][y], "Wall is reachable"
         elif maze[x][y] == 1:
             assert analysis.distances[x][y] == 0, "Goal with wrong distance"
             assert analysis.directions[x][y] == b'X', "Goal with wrong direction"
-            assert analysis.is_reachable[x][y], "Goal is unreachable"
         elif analysis.directions[x][y] == b' ':
+            is_reachable = False
             assert analysis.distances[x][y] == -1, "Unreachable field with distance"
-            assert not analysis.is_reachable[x][y], "Unreachable field is reachable"
             for i in range(4):
                 ox, oy = dir_offsets[i]
                 new_place = x + ox, y + oy
                 if inside(new_place, maze):
                     assert analysis.directions[new_place] == b' ' or \
                            analysis.directions[new_place] == b'#', \
-                           "Not really unreachable field"
+                        "Not really unreachable field"
+            assert not analysis.is_reachable, "False is_reachable (witness found)"
         else:
             direction_correct = False
             distance_correct = False
@@ -52,7 +52,7 @@ def verify_matrices(maze, analysis):
                             direction_correct = analysis.directions[x][y] == dir_chars[i]
             assert distance_correct or maze[x][y] == 1, "No next step around although not goal yet"
             assert direction_correct, "Direction leading wrong way"
-            assert analysis.is_reachable[x][y], "Reachable field is unreachable"
+    assert is_reachable == analysis.is_reachable, "False is_reachable (no witness found)"
 
 
 def verify_path(maze, analysis, row, column):

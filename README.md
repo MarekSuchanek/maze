@@ -17,11 +17,11 @@ Analysis of maze produces an object with ([original task formulation](https://gi
 * attribute `distances` = each cell contains shortest path len to (some)
   goal (goal contains 0). If it is not possible to get to any goal from
   the cell or the cell is a wall, then value is -1.
-* attribute `directions` = visualizes the path to goal via `<`, `>`, `v`,
-  `^` characters, `X` for goal cell, `#` for wall and ` ` (space) for
-  cells without path to any goal.
-* attribute `is_reachable` = each cell contains truth value if the goal 
-  is reachable from that cell.
+* attribute `directions` = visualizes the path to goal via `'<'`, `'>'`,
+  `'v'`, `'^'` characters, `'X'` for goal cell, `'#'` for wall and `' '` 
+  (space) for cells without path to any goal.
+* attribute `is_reachable` = single truth value if any goal is reachable
+  from all non-wall cells
 * method `path(row, column)` = build array of coords representing the 
   shorest path (or one of shortests paths if there are more). If no path
   exists from specified start, then `NoPathExistsException` is raised.
