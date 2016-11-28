@@ -8,9 +8,9 @@ subject from [FIT CTU in Prague](https://fit.cvut.cz).
 
 It takes a maze (matrix of numbers), where:
 
-* wall (impassable cell) -> number < 0
-* accessible cell -> number >= 0
-* goal cell -> number == 1 (one or more)
+* wall (impassable cell) -> `number < 0`
+* accessible cell -> `number >= 0`
+* goal cell -> `number == 1` (one or more)
 
 Analysis of maze produces an object with ([original task formulation](https://github.com/cvut/MI-PYT/blob/master/tutorials/07_numpy.md)):
 
@@ -21,7 +21,7 @@ Analysis of maze produces an object with ([original task formulation](https://gi
   `'v'`, `'^'` characters, `'X'` for goal cell, `'#'` for wall and `' '` 
   (space) for cells without path to any goal.
 * attribute `is_reachable` = single truth value if any goal is reachable
-  from all non-wall cells
+  from all non-wall cells.
 * method `path(row, column)` = build array of coords representing the 
   shorest path (or one of shortests paths if there are more). If no path
   exists from specified start, then `NoPathExistsException` is raised.
@@ -52,9 +52,7 @@ array([[b'v', b'#', b'X'],
        [b'>', b'>', b'^']], 
       dtype='|S1')
 >>> a.is_reachable
-array([[ True, False,  True],
-       [ True, False,  True],
-       [ True,  True,  True]], dtype=bool)
+True
 >>> a.path(0,0)
 [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (1, 2), (0, 2)]
 >>> a.path(1,1)
@@ -66,6 +64,8 @@ maze.NoPathExistsException
 ```
 
 ## Testing
+
+After installing dependencies you can run tests with `pytest`:
 
 ```
 python -m pytest
