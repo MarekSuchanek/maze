@@ -14,7 +14,7 @@ def inside(coords, matrix):
 def verify_matrices(maze, analysis):
     maze = np.atleast_2d(maze)
     dir_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-    dir_chars = [b'v', b'^',b'>', b'<']
+    dir_chars = [b'v', b'^', b'>', b'<']
     is_reachable = True
     for x, y in np.ndindex(maze.shape):
         if maze[x][y] < 0:
@@ -32,7 +32,7 @@ def verify_matrices(maze, analysis):
                 if inside(new_place, maze):
                     assert analysis.directions[new_place] == b' ' or \
                            analysis.directions[new_place] == b'#', \
-                        "Not really unreachable field"
+                           "Not really unreachable field"
             assert not analysis.is_reachable, "False is_reachable (witness found)"
         else:
             direction_correct = False
@@ -41,10 +41,10 @@ def verify_matrices(maze, analysis):
                 ox, oy = dir_offsets[i]
                 new_place = x + ox, y + oy
                 if inside(new_place, maze) and maze[new_place] >= 0:
-                    next = analysis.distances[x][y] - 1 == analysis.distances[new_place]
-                    prev = analysis.distances[x][y] + 1 == analysis.distances[new_place]
-                    same = analysis.distances[x][y] == analysis.distances[new_place]
-                    assert next or prev or same, \
+                    nxt = analysis.distances[x][y] - 1 == analysis.distances[new_place]
+                    prv = analysis.distances[x][y] + 1 == analysis.distances[new_place]
+                    eql = analysis.distances[x][y] == analysis.distances[new_place]
+                    assert nxt or prv or eql, \
                         "Neighboring field differs by more than 1 step"
                     if next:
                         distance_correct = True
@@ -71,8 +71,8 @@ def verify_path(maze, analysis, row, column):
     assert maze[last] == 1, "Does not lead to goal"
 
 
-def load_maze(type, number):
-    fname = mazes_path.format(type, number)
+def load_maze(mtype, number):
+    fname = mazes_path.format(mtype, number)
     return np.loadtxt(fname, delimiter=',')
 
 
