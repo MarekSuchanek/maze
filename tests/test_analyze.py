@@ -3,9 +3,6 @@ import numpy as np
 from maze import analyze, NoPathExistsException
 
 
-mazes_path = "tests/fixtures/mazes/{0}/{1:02d}.csv"
-
-
 def inside(coords, matrix):
     return 0 <= coords[0] < matrix.shape[0] and \
            0 <= coords[1] < matrix.shape[1]
@@ -71,19 +68,14 @@ def verify_path(maze, analysis, row, column):
     assert maze[last] == 1, "Does not lead to goal"
 
 
-def load_maze(mtype, number):
-    fname = mazes_path.format(mtype, number)
-    return np.loadtxt(fname, delimiter=',')
-
-
 @pytest.mark.parametrize('mtype,number', [
     ('simple', 1), ('simple', 2), ('simple', 3), ('simple', 4),
     ('bounds', 1), ('bounds', 2), ('bounds', 3), ('bounds', 4),
     ('multigoal', 1), ('multigoal', 2), ('multigoal', 3), ('multigoal', 4),
     ('unreachable', 1), ('unreachable', 2)
 ])
-def test_analysis(mtype, number):
-    maze = load_maze(mtype, number)
+def test_analysis(mazes, mtype, number):
+    maze = mazes[mtype][number]
     analysis = analyze(maze)
     verify_matrices(maze, analysis)
 
@@ -92,8 +84,8 @@ def test_analysis(mtype, number):
     ('simple', 1, 1, 0), ('simple', 1, 1, 4), ('simple', 1, 3, 1),
     ('multigoal', 4, 0, 0), ('multigoal', 4, 3, 0)
 ])
-def test_paths(mtype, number, row, column):
-    maze = load_maze(mtype, number)
+def test_paths(mazes, mtype, number, row, column):
+    maze = mazes[mtype][number]
     analysis = analyze(maze)
     verify_path(maze, analysis, row, column)
 
@@ -102,10 +94,8 @@ def test_paths(mtype, number, row, column):
     ('simple', 1, 0, 0), ('multigoal', 4, 4, 0),
     ('unreachable', 1, 0, 0), ('unreachable', 2, 1, 1),
 ])
-def test_paths_exception(mtype, number, row, column):
-    maze = load_maze(mtype, number)
+def test_paths_exception(mazes, mtype, number, row, column):
+    maze = mazes[mtype][number]
     analysis = analyze(maze)
     with pytest.raises(NoPathExistsException):
         analysis.path(row, column)
-
-# TODO: better loading of mazes from files (parametric fixture?)
