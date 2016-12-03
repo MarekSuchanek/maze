@@ -15,7 +15,7 @@ def load_mazes(folder):
         path = os.path.join(folder, name)
         if os.path.isfile(path) and name.endswith('.csv'):
             maze_num = int(name[:-4])
-            result[maze_num] = np.loadtxt(path, delimiter=',')
+            result[maze_num] = np.loadtxt(path, delimiter=',', dtype='int16')
     return result
 
 

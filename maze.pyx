@@ -19,23 +19,25 @@ cdef struct qitem:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef flood(maze):
-    cdef int x, y, i, w, h
+cpdef flood(np.ndarray[np.int16_t, ndim=2] maze, int w, int h):
+    cdef int x, y, i
     cdef queue[qitem] q
     cdef np.ndarray[np.int16_t, ndim=2] distances
     cdef np.ndarray[np.int8_t, ndim=2] directions
-    maze = np.atleast_2d(maze)
-    w = maze.shape[0]
-    h = maze.shape[1]
     distances = np.full((w, h), -1, dtype='int16')
     directions = np.full((w, h), b' ', dtype=('a', 1))
-    np.place(directions, maze < 0, b'#')
-    goals = np.asarray(np.where(maze == 1)).T
-    for goal in goals:
-        g = tuple(goal)
-        distances[g] = 0
-        directions[g] = b'X'
-        q.push(qitem(g[0],g[1],0))
+
+    with cython.nogil:
+        for x in range(w):
+            for y in range(h):
+                with cython.gil:
+                    if maze[x, y] < 0:
+                        directions[x, y] = b'#'
+                    elif maze[x, y] == 1:
+                        q.push(qitem(x, y, 0))
+                        distances[x, y] = 0
+                        directions[x, y] = b'X'
+
     cdef coords *dir_offsets = [coords(1, 0), coords(-1, 0), coords(0, 1), coords(0, -1)]
     cdef np.int8_t *dir_chars = [b'^', b'v', b'<', b'>']
     while not q.empty():
@@ -80,7 +82,8 @@ cdef class NoPathExistsException(Exception):
 class MazeAnalysis:
 
     def __init__(self, maze):
-        self.distances, self.directions = flood(maze)
+        maze = np.atleast_2d(maze)
+        self.distances, self.directions = flood(maze, *maze.shape)
         self.is_reachable = b' ' not in self.directions
 
     def path(self, row, column):
