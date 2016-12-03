@@ -90,3 +90,12 @@ ENV/
 
 # PyCharm
 .idea
+
+# MI-PYT tests
+tests2
+
+# Own
+maze.cpp
+maze.html
+generate.py
+random.csv
