@@ -95,6 +95,7 @@ ENV/
 tests2
 
 # Own
+maze.c
 maze.cpp
 maze.html
 generate.py

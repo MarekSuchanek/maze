@@ -1,9 +1,20 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from Cython.Build import cythonize
 import numpy
 
+with open('README.md') as f:
+    long_description = ''.join(f.readlines())
+
 setup(
     name='maze',
+    version=0.2,
+    keywords='maze analysis matrix cython',
+    description='Simple python maze analyzer for finding shortest path',
+    long_description=long_description,
+    author='Marek Suchánek',
+    author_email='suchama4@fit.cvut.cz',
+    license='MIT',
+    packages=find_packages(),
     ext_modules=cythonize(
         'maze.pyx',
         language_level=3,
@@ -12,7 +23,22 @@ setup(
     ),
     include_dirs=[numpy.get_include()],
     install_requires=[
-        'Cython',
-        'NumPy',
+        'Cython>=0.25.1',
+        'numpy>=1.11.2',
+        'py>=1.4.31',
+    ],
+    setup_requires=[
+        'pytest-runner'
+    ],
+    tests_require=[
+        'pytest',
+    ],
+    classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+        'Topic :: Scientific/Engineering :: Mathematics',
     ],
 )
