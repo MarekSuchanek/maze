@@ -1,5 +1,6 @@
 import numpy as np
 cimport numpy as np
+import cython
 from libcpp.queue cimport queue
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
@@ -15,6 +16,8 @@ cdef struct qitem:
     int distance
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef flood(maze):
     cdef int x, y, i, w, h
     cdef queue[qitem] q
@@ -49,6 +52,8 @@ cpdef flood(maze):
     return distances, directions
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cpdef build_path(np.ndarray[np.int8_t, ndim=2] directions, int row, int column):
     if directions[row, column] == b'#' or directions[row, column] == b' ':
         raise NoPathExistsException
