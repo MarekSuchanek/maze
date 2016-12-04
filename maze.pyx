@@ -71,7 +71,7 @@ cpdef flood(np.ndarray[np.int16_t, ndim=2] maze, int w, int h):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef vector[pair[int,int]] build_path(np.ndarray[np.int8_t, ndim=2] directions, int row, int column):
+cpdef build_path(np.ndarray[np.int8_t, ndim=2] directions, int row, int column):
     if directions[row, column] == b'#' or directions[row, column] == b' ':
         raise NoPathExistsException
     cdef vector[pair[int,int]] path
