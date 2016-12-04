@@ -2,6 +2,7 @@
 import numpy as np
 cimport numpy as np
 import cython
+from libcpp cimport bool
 from libcpp.queue cimport queue
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
@@ -15,6 +16,18 @@ cdef struct qitem:
     int x
     int y
     int distance
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef bool directions2reachable(np.ndarray[np.int8_t, ndim=2] directions, int w, int h):
+    with cython.nogil:
+        for x in range(w):
+            for y in range(h):
+                with cython.gil:
+                    if directions[x, y] == ord(b' '):
+                        return False
+    return True
 
 
 @cython.boundscheck(False)
@@ -52,12 +65,13 @@ cpdef flood(np.ndarray[np.int16_t, ndim=2] maze, int w, int h):
                     distances[x, y] = item.distance+1
                     directions[x, y] = dir_chars[i]
                     q.push(qitem(x, y, item.distance+1))
-    return distances, directions
+
+    return distances, directions, directions2reachable(directions, w, h)
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef build_path(np.ndarray[np.int8_t, ndim=2] directions, int row, int column):
+cdef vector[pair[int,int]] build_path(np.ndarray[np.int8_t, ndim=2] directions, int row, int column):
     if directions[row, column] == b'#' or directions[row, column] == b' ':
         raise NoPathExistsException
     cdef vector[pair[int,int]] path
@@ -83,8 +97,7 @@ class MazeAnalysis:
 
     def __init__(self, maze):
         maze = np.atleast_2d(maze)
-        self.distances, self.directions = flood(maze, *maze.shape)
-        self.is_reachable = b' ' not in self.directions
+        self.distances, self.directions, self.is_reachable = flood(maze, *maze.shape)
 
     def path(self, row, column):
         return build_path(self.directions, row, column)
