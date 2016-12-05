@@ -32,12 +32,12 @@ cdef bool directions2reachable(np.ndarray[np.int8_t, ndim=2] directions, int w, 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef flood(np.ndarray[np.int16_t, ndim=2] maze, int w, int h):
+cpdef flood(np.ndarray[np.int8_t, ndim=2] maze, int w, int h):
     cdef int x, y, i
     cdef queue[qitem] q
-    cdef np.ndarray[np.int16_t, ndim=2] distances
+    cdef np.ndarray[np.int32_t, ndim=2] distances
     cdef np.ndarray[np.int8_t, ndim=2] directions
-    distances = np.full((w, h), -1, dtype='int16')
+    distances = np.full((w, h), -1, dtype='int32')
     directions = np.full((w, h), b' ', dtype=('a', 1))
 
     with cython.nogil:
@@ -96,7 +96,7 @@ cdef class NoPathExistsException(Exception):
 class MazeAnalysis:
 
     def __init__(self, maze):
-        maze = np.atleast_2d(maze)
+        maze = np.atleast_2d(maze.astype('int8')) # fix matrix type & dims
         self.distances, self.directions, self.is_reachable = flood(maze, *maze.shape)
 
     def path(self, row, column):
