@@ -35,6 +35,19 @@ have this version of Python). Then you can install dependencies via:
 pip install -r requirements.txt
 ```
 
+For speedup is analysis written in Cython so you need to compile it with
+via:
+
+```
+python setup.py develop
+```
+
+or
+
+```
+python setup.py install
+```
+
 ## Usage
 
 ```
@@ -65,7 +78,7 @@ maze.NoPathExistsException
 
 ## Testing
 
-After installing dependencies you can run tests with `pytest`:
+After installing dependencies and compilation you can run tests with `pytest`:
 
 ```
 python -m pytest

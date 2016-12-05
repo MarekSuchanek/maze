@@ -5,4 +5,13 @@ install:
 - pip install -U pip
 - pip install -r requirements.txt
 script:
+- python setup.py develop
 - python -m pytest
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-4.8
+    - g++-4.8
+    - python3-dev
