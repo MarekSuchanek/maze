@@ -16,6 +16,14 @@ setup(
     author_email='suchama4@fit.cvut.cz',
     license='MIT',
     packages=find_packages(),
+    package_data={
+        'maze': [
+            'static/pics/*.svg',
+            'static/pics/README.md',
+            'static/pics/arrows/*.svg',
+            'static/pics/lines/*.svg',
+        ]
+    },
     ext_modules=cythonize(
         glob.glob('maze/*.pyx'),
         language_level=3,
