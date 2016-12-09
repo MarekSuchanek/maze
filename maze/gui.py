@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets, QtGui, QtCore, QtSvg, uic
-import numpy
+import numpy as np
 import os
 dir = os.path.dirname(__file__)
 
@@ -10,6 +10,13 @@ CELL_SIZE = 32
 SVG_GRASS = QtSvg.QSvgRenderer(filepath('static/pics/grass.svg'))
 SVG_WALL = QtSvg.QSvgRenderer(filepath('static/pics/wall.svg'))
 VALUE_ROLE = QtCore.Qt.UserRole
+
+ITEMS = [  # TODO: from config
+    ('Grass', 'static/pics/grass.svg', 0),
+    ('Wall', 'static/pics/wall.svg', -1),
+    ('Strong wall', 'static/pics/wall2.svg', -2),
+    ('Castle', 'static/pics/castle.svg', 1),
+]
 
 def pixels_to_logical(x, y):
     return y // CELL_SIZE, x // CELL_SIZE
@@ -54,57 +61,57 @@ class GridWidget(QtWidgets.QWidget):
             self.update(*logical_to_pixels(row, column), CELL_SIZE, CELL_SIZE)
 
 
-def new_dialog(window, grid):
-    dialog = QtWidgets.QDialog(window)
-    with open(filepath('static/ui/newmaze.ui')) as f:
-        uic.loadUi(f, dialog)
-    result = dialog.exec()
-    if result == QtWidgets.QDialog.Rejected:
-        return
-    cols = dialog.findChild(QtWidgets.QSpinBox, 'widthBox').value()
-    rows = dialog.findChild(QtWidgets.QSpinBox, 'heightBox').value()
-    grid.array = numpy.zeros((rows, cols), dtype=numpy.int8)
-    size = logical_to_pixels(rows, cols)
-    grid.setMinimumSize(*size)
-    grid.setMaximumSize(*size)
-    grid.resize(*size)
-    grid.update()
+class MazeGUI:
+
+    def __init__(self):
+        self.app = QtWidgets.QApplication([])
+        self.window = QtWidgets.QMainWindow()
+        with open(filepath('static/ui/mainwindow.ui')) as f:
+            uic.loadUi(f, self.window)
+        self.grid = GridWidget(np.zeros((20, 20), dtype=np.int8))
+        scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
+        scroll_area.setWidget(self.grid)
+        self.palette = self._find(QtWidgets.QListWidget, 'palette')
+
+    def _find(self, type, name):
+        return self.window.findChild(type, name)
+
+    def _setup_palette(self):
+        def item_activated():
+            for item in self.palette.selectedItems():
+                self.grid.selected = item.data(VALUE_ROLE)
+
+        for x in ITEMS:
+            item = QtWidgets.QListWidgetItem(x[0])
+            item.setIcon(QtGui.QIcon(filepath(x[1])))
+            item.setData(VALUE_ROLE, x[2])
+            self.palette.addItem(item)
+        self.palette.itemSelectionChanged.connect(item_activated)
+        self.palette.setCurrentRow(1)
+        action = self.window.findChild(QtWidgets.QAction, 'actionNew')
+        action.triggered.connect(self.new_dialog)
+
+    def run(self):
+        self.window.show()
+        return self.app.exec()
+
+    def new_dialog(self):
+        dialog = QtWidgets.QDialog(self.window)
+        with open(filepath('static/ui/newmaze.ui')) as f:
+            uic.loadUi(f, dialog)
+        result = dialog.exec()
+        if result == QtWidgets.QDialog.Rejected:
+            return
+        cols = dialog.findChild(QtWidgets.QSpinBox, 'widthBox').value()
+        rows = dialog.findChild(QtWidgets.QSpinBox, 'heightBox').value()
+        self.grid.array = np.zeros((rows, cols), dtype=np.int8)
+        size = logical_to_pixels(rows, cols)
+        self.grid.setMinimumSize(*size)
+        self.grid.setMaximumSize(*size)
+        self.grid.resize(*size)
+        self.grid.update()
+
 
 def main():
-    app = QtWidgets.QApplication([])
-    window = QtWidgets.QMainWindow()
-    with open(filepath('static/ui/mainwindow.ui')) as f:
-        uic.loadUi(f, window)
-
-    array = numpy.zeros((15, 20), dtype=numpy.int8)
-    array[:, 5] = -1
-
-    grid = GridWidget(array)
-
-    scroll_area = window.findChild(QtWidgets.QScrollArea, 'scrollArea')
-    scroll_area.setWidget(grid)
-
-    itemG = QtWidgets.QListWidgetItem('Grass')
-    icon = QtGui.QIcon(filepath('static/pics/grass.svg'))
-    itemG.setIcon(icon)
-    itemG.setData(VALUE_ROLE, 0)
-    itemW = QtWidgets.QListWidgetItem('Wall')
-    icon = QtGui.QIcon(filepath('static/pics/wall.svg'))
-    itemW.setIcon(icon)
-    itemW.setData(VALUE_ROLE, -1)
-    palette = window.findChild(QtWidgets.QListWidget, 'palette')
-    palette.addItem(itemG)
-    palette.addItem(itemW)
-
-    def item_activated():
-        for item in palette.selectedItems():
-            grid.selected = item.data(VALUE_ROLE)
-
-    palette.itemSelectionChanged.connect(item_activated)
-    palette.setCurrentRow(1)
-    action = window.findChild(QtWidgets.QAction, 'actionNew')
-    action.triggered.connect(lambda: new_dialog(window, grid))
-    window.show()
-    return app.exec()
-
-main()
+    gui = MazeGUI()
+    gui.run()
