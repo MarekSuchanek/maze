@@ -1,71 +1,87 @@
 from PyQt5 import QtWidgets, QtGui, QtCore, QtSvg, uic
 import numpy as np
 import os
-dir = os.path.dirname(__file__)
+import json
+import configparser
+from collections import OrderedDict
+
+
+VALUE_ROLE = QtCore.Qt.UserRole
+CONFIG_FILE = 'static/gui.cfg'
+BASEDIR = os.path.dirname(__file__)
+
 
 def filepath(rel_path):
-    return os.path.join(dir, rel_path)
-
-CELL_SIZE = 32
-SVG_GRASS = QtSvg.QSvgRenderer(filepath('static/pics/grass.svg'))
-SVG_WALL = QtSvg.QSvgRenderer(filepath('static/pics/wall.svg'))
-VALUE_ROLE = QtCore.Qt.UserRole
-
-ITEMS = [  # TODO: from config
-    ('Grass', 'static/pics/grass.svg', 0),
-    ('Wall', 'static/pics/wall.svg', -1),
-    ('Strong wall', 'static/pics/wall2.svg', -2),
-    ('Castle', 'static/pics/castle.svg', 1),
-]
+    return os.path.join(BASEDIR, rel_path)
 
 
-def pixels_to_logical(x, y):
-    return y // CELL_SIZE, x // CELL_SIZE
+class MazeElement:
 
-
-def logical_to_pixels(row, column):
-    return column * CELL_SIZE, row * CELL_SIZE
+    def __init__(self, values, key):
+        self.name = values['name']
+        self.img_path = filepath(values['img'])
+        self.value = key
+        self.svg = QtSvg.QSvgRenderer(self.img_path)
+        self.icon = QtGui.QIcon(self.img_path)
 
 
 class GridWidget(QtWidgets.QWidget):
-    def __init__(self, array):
+
+    def __init__(self, array, elements, cell_size=32):
         super().__init__()
+        self.cell_size = cell_size
         self.array = array
-        size = logical_to_pixels(*array.shape)
+        self.elements = elements
+        size = self.table2px(*array.shape)
         self.setMinimumSize(*size)
         self.setMaximumSize(*size)
         self.resize(*size)
 
+    def px2table(self, x, y):
+        return y // self.cell_size, x // self.cell_size
+
+    def table2px(self, row, column):
+        return column * self.cell_size, row * self.cell_size
+
     def paintEvent(self, event):
         rect = event.rect()
-        row_min, col_min = pixels_to_logical(rect.left(), rect.top())
+        row_min, col_min = self.px2table(rect.left(), rect.top())
         row_min = max(row_min, 0)
         col_min = max(col_min, 0)
-        row_max, col_max = pixels_to_logical(rect.right(), rect.bottom())
+        row_max, col_max = self.px2table(rect.right(), rect.bottom())
         row_max = min(row_max + 1, self.array.shape[0])
         col_max = min(col_max + 1, self.array.shape[1])
         painter = QtGui.QPainter(self)
         for row in range(row_min, row_max):
             for column in range(col_min, col_max):
-                x, y = logical_to_pixels(row, column)
-                rect = QtCore.QRectF(x, y, CELL_SIZE, CELL_SIZE)
+                x, y = self.table2px(row, column)
+                rect = QtCore.QRectF(x, y, self.cell_size, self.cell_size)
                 white = QtGui.QColor(255, 255, 255)
                 painter.fillRect(rect, QtGui.QBrush(white))
-                SVG_GRASS.render(painter, rect)
-                if self.array[row, column] < 0:
-                    SVG_WALL.render(painter, rect)
+                self.elements[0].svg.render(painter, rect)
+                if self.array[row, column] != 0:
+                    self.elements[self.array[row, column]].svg.render(painter, rect)
 
     def mousePressEvent(self, event):
-        row, column = pixels_to_logical(event.x(), event.y())
+        row, column = self.px2table(event.x(), event.y())
         if 0 <= row < self.array.shape[0] and 0 <= column < self.array.shape[1]:
             self.array[row, column] = self.selected
-            self.update(*logical_to_pixels(row, column), CELL_SIZE, CELL_SIZE)
+            self.update(*self.table2px(row, column), self.cell_size, self.cell_size)
+
+    def change_array(self, array):
+        size = self.table2px(*array.shape)
+        self.setMinimumSize(*size)
+        self.setMaximumSize(*size)
+        self.resize(*size)
+        self.update()
 
 
 class MazeGUI:
 
-    def __init__(self):
+    def __init__(self, config):
         self.app = QtWidgets.QApplication([])
+        self.config = config['gui']
+        self._setup_elements()
         self.window = QtWidgets.QMainWindow()
         with open(filepath('static/ui/mainwindow.ui')) as f:
             uic.loadUi(f, self.window)
@@ -76,21 +92,36 @@ class MazeGUI:
     def _find(self, type, name):
         return self.window.findChild(type, name)
 
+    def _setup_elements(self):
+        self.elements = OrderedDict()
+        with open(filepath(self.config['palette'])) as f:
+            data = json.load(f, object_pairs_hook=OrderedDict)
+            data = [(int(k), MazeElement(v, k)) for k,v in data.items()]
+            self.elements = OrderedDict(data)
+
     def _setup_grid(self):
-        self.grid = GridWidget(np.zeros((20, 20), dtype=np.int8))
+        new_array = np.zeros(
+            (
+                int(self.config['init_rows']),
+                int(self.config['init_cols'])
+            ),
+            dtype=np.int8
+        )
+        self.grid = GridWidget(new_array, self.elements, int(self.config['cell_size']))
         scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
         scroll_area.setWidget(self.grid)
 
     def _setup_palette(self):
         self.palette = self._find(QtWidgets.QListWidget, 'palette')
+
         def item_activated():
             for item in self.palette.selectedItems():
                 self.grid.selected = item.data(VALUE_ROLE)
 
-        for x in ITEMS:
-            item = QtWidgets.QListWidgetItem(x[0])
-            item.setIcon(QtGui.QIcon(filepath(x[1])))
-            item.setData(VALUE_ROLE, x[2])
+        for e in self.elements.values():
+            item = QtWidgets.QListWidgetItem(e.name)
+            item.setIcon(e.icon)
+            item.setData(VALUE_ROLE, e.value)
             self.palette.addItem(item)
         self.palette.itemSelectionChanged.connect(item_activated)
         self.palette.setCurrentRow(1)
@@ -114,12 +145,7 @@ class MazeGUI:
             return
         cols = dialog.findChild(QtWidgets.QSpinBox, 'widthBox').value()
         rows = dialog.findChild(QtWidgets.QSpinBox, 'heightBox').value()
-        self.grid.array = np.zeros((rows, cols), dtype=np.int8)
-        size = logical_to_pixels(rows, cols)
-        self.grid.setMinimumSize(*size)
-        self.grid.setMaximumSize(*size)
-        self.grid.resize(*size)
-        self.grid.update()
+        self.grid.change_array(np.zeros((rows, cols), dtype=np.int8))
 
     def about_dialog(self):
         dialog = QtWidgets.QDialog(self.window)
@@ -129,5 +155,7 @@ class MazeGUI:
 
 
 def main():
-    gui = MazeGUI()
+    cfg = configparser.ConfigParser()
+    cfg.read(filepath(CONFIG_FILE))
+    gui = MazeGUI(cfg)
     gui.run()

@@ -18,6 +18,8 @@ setup(
     packages=find_packages(),
     package_data={
         'maze': [
+            'static/*.cfg',
+            'static/*.json',
             'static/ui/*.ui',
             'static/pics/*.svg',
             'static/pics/README.md',
