@@ -27,6 +27,7 @@ setup(
         'Cython>=0.25.1',
         'numpy>=1.11.2',
         'py>=1.4.31',
+        'PyQt5==5.7',
     ],
     setup_requires=[
         'pytest-runner'
