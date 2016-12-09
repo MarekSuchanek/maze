@@ -18,6 +18,7 @@ ITEMS = [  # TODO: from config
     ('Castle', 'static/pics/castle.svg', 1),
 ]
 
+
 def pixels_to_logical(x, y):
     return y // CELL_SIZE, x // CELL_SIZE
 
@@ -68,15 +69,20 @@ class MazeGUI:
         self.window = QtWidgets.QMainWindow()
         with open(filepath('static/ui/mainwindow.ui')) as f:
             uic.loadUi(f, self.window)
-        self.grid = GridWidget(np.zeros((20, 20), dtype=np.int8))
-        scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
-        scroll_area.setWidget(self.grid)
-        self.palette = self._find(QtWidgets.QListWidget, 'palette')
+        self._setup_grid()
+        self._setup_palette()
+        self._setup_dialogs()
 
     def _find(self, type, name):
         return self.window.findChild(type, name)
 
+    def _setup_grid(self):
+        self.grid = GridWidget(np.zeros((20, 20), dtype=np.int8))
+        scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
+        scroll_area.setWidget(self.grid)
+
     def _setup_palette(self):
+        self.palette = self._find(QtWidgets.QListWidget, 'palette')
         def item_activated():
             for item in self.palette.selectedItems():
                 self.grid.selected = item.data(VALUE_ROLE)
@@ -88,8 +94,12 @@ class MazeGUI:
             self.palette.addItem(item)
         self.palette.itemSelectionChanged.connect(item_activated)
         self.palette.setCurrentRow(1)
+
+    def _setup_dialogs(self):
         action = self.window.findChild(QtWidgets.QAction, 'actionNew')
         action.triggered.connect(self.new_dialog)
+        action = self.window.findChild(QtWidgets.QAction, 'actionAbout')
+        action.triggered.connect(self.about_dialog)
 
     def run(self):
         self.window.show()
@@ -110,6 +120,12 @@ class MazeGUI:
         self.grid.setMaximumSize(*size)
         self.grid.resize(*size)
         self.grid.update()
+
+    def about_dialog(self):
+        dialog = QtWidgets.QDialog(self.window)
+        with open(filepath('static/ui/help.ui')) as f:
+            uic.loadUi(f, dialog)
+        dialog.exec()
 
 
 def main():
