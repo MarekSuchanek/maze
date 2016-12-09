@@ -1,3 +1,4 @@
+import glob
 from setuptools import setup, find_packages
 from Cython.Build import cythonize
 import numpy
@@ -16,7 +17,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     ext_modules=cythonize(
-        'maze.pyx',
+        glob.glob('maze/*.pyx'),
         language_level=3,
         include_dirs=[numpy.get_include()],
         language="c++"
