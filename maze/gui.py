@@ -9,14 +9,18 @@ from .analysis import analyze, NoPathExistsException
 
 VALUE_ROLE = QtCore.Qt.UserRole
 CONFIG_FILE = 'static/gui.cfg'
-LINES_MASK = 'static/pics/lines/{}.svg'
+LINE_MASK = 'static/pics/lines/{}.svg'
+ARROW_MASK = 'static/pics/arrows/{}.svg'
+DIRECTIONS = ['up', 'right', 'left', 'down']
+DIRECTIONS_MAP = {b'^': 0, b'>': 1, b'<': 2, b'v': 3}
 BASEDIR = os.path.dirname(__file__)
 
 
 def filepath(rel_path):
     return os.path.join(BASEDIR, rel_path)
 
-SVG_LINES = {i: QtSvg.QSvgRenderer(filepath(LINES_MASK.format(i))) for i in range(1, 16)}
+SVG_LINES = {i: QtSvg.QSvgRenderer(filepath(LINE_MASK.format(i))) for i in range(1, 16)}
+SVG_ARROWS = {i:QtSvg.QSvgRenderer(filepath(ARROW_MASK.format(DIRECTIONS[i]))) for i in range(4)}
 
 
 class MazeElement:
@@ -37,6 +41,8 @@ class GridWidget(QtWidgets.QWidget):
         self.init_size = cell_size
         self.array = None
         self.starts = None
+        self.paths = None
+        self.dirs = None
         self.change_array(array)
         self.elements = elements
 
@@ -64,6 +70,8 @@ class GridWidget(QtWidgets.QWidget):
                 self.elements[0].svg.render(painter, rect)
                 if self.paths[row, col] != 0:
                     SVG_LINES[self.paths[row, col]].render(painter, rect)
+                    if self.array[row, col] == 0:
+                        SVG_ARROWS[self.dirs[row, col]].render(painter, rect)
                 if self.array[row, col] != 0:
                     self.elements[self.array[row, col]].svg.render(painter, rect)
 
@@ -92,12 +100,14 @@ class GridWidget(QtWidgets.QWidget):
     def make_paths(self):
         analysis = analyze(self.array)
         paths = np.zeros(self.array.shape, dtype=np.int8)
+        dirs = np.zeros(self.array.shape, dtype=np.int8)
         for start in self.starts:
             try:
                 path = analysis.path(*start)
                 for step in path:
                     x, y = step
                     d = analysis.directions[x, y]
+                    dirs[x, y] = DIRECTIONS_MAP.get(d, 0)
                     if d == b'<':
                         if paths[x, y] not in {2, 3, 6, 7, 10, 11, 14, 15}:
                             paths[x, y] += 2
@@ -121,6 +131,7 @@ class GridWidget(QtWidgets.QWidget):
             except NoPathExistsException:
                 pass
         self.paths = paths
+        self.dirs = dirs
 
 
     def update_size(self):
