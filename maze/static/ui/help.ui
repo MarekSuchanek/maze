@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Maze (help)</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../pics/castle.svg</normaloff>../pics/castle.svg</iconset>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QLabel" name="label">
