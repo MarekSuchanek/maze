@@ -33,6 +33,7 @@ class MazeElement:
         self.svg = QtSvg.QSvgRenderer(self.img_path)
         self.icon = QtGui.QIcon(self.img_path)
 
+
 class GridWidget(QtWidgets.QWidget):
 
     def __init__(self, array, elements, cell_size=32):
@@ -112,7 +113,8 @@ class GridWidget(QtWidgets.QWidget):
 
     def change_array(self, array):
         self.array = array
-        self.starts = set()
+        indices = list(np.where(array > 1))
+        self.starts = set(zip(list(indices[0]), list(indices[1])))
         self.update_array()
 
     def update_array(self):
@@ -156,7 +158,6 @@ class GridWidget(QtWidgets.QWidget):
         self.paths = paths
         self.dirs = dirs
 
-
     def update_size(self):
         size = self.table2px(*self.array.shape)
         self.setMinimumSize(*size)
@@ -180,12 +181,20 @@ class GridWidget(QtWidgets.QWidget):
         self.cell_size = self.init_size
         self.update_size()
 
+    def save_to_file(self, filename):
+        np.savetxt(filename, self.array, fmt='%d')
+
+    def load_from_file(self, filename):
+        array = np.loadtxt(filename, dtype=np.int8)
+        self.change_array(array)
+
 
 class MazeGUI:
 
     def __init__(self, config):
         self.app = QtWidgets.QApplication([])
         self.config = config['gui']
+        self.filename = None
         self._setup_elements()
         self.window = QtWidgets.QMainWindow()
         with open(filepath('static/ui/mainwindow.ui')) as f:
@@ -234,6 +243,12 @@ class MazeGUI:
     def _setup_actions(self):
         action = self.window.findChild(QtWidgets.QAction, 'actionNew')
         action.triggered.connect(self.new_dialog)
+        action = self.window.findChild(QtWidgets.QAction, 'actionOpen')
+        action.triggered.connect(self.file_open)
+        action = self.window.findChild(QtWidgets.QAction, 'actionSave')
+        action.triggered.connect(self.file_save)
+        action = self.window.findChild(QtWidgets.QAction, 'actionSaveAs')
+        action.triggered.connect(self.file_save_as)
         action = self.window.findChild(QtWidgets.QAction, 'actionAbout')
         action.triggered.connect(self.about_dialog)
         action = self.window.findChild(QtWidgets.QAction, 'actionZoomIn')
@@ -247,6 +262,59 @@ class MazeGUI:
         self.window.show()
         return self.app.exec()
 
+    def file_open(self):
+        paths = self.file_dialog(False)
+        if len(paths) > 0:
+            self.grid_save(paths[0])
+
+    def file_save(self):
+        if self.filename is None:
+            self.file_save_as()
+        else:
+            self.grid_save(self.filename)
+
+    def file_save_as(self):
+        paths = self.file_dialog(True)
+        if len(paths) > 0:
+            self.grid_save(paths[0])
+
+    # TODO: ask for save when there are unsaved changes on close
+    def grid_save(self, filename):
+        try:
+            self.grid.save_to_file(filename)
+            self.set_file(filename)
+        except:
+            pass  # TODO: Show error msg
+
+    def grid_open(self, filename):
+        try:
+            self.grid.load_from_file(filename)
+            self.set_file(filename)
+        except:
+            pass  # TODO: Show error msg
+
+    def set_file(self, filename):
+        self.window.setWindowTitle('Maze: '+filename)
+        self.filename = filename
+
+    def reset_file(self):
+        self.window.setWindowTitle('Maze')
+        self.filename = None
+
+    def file_dialog(self, save):
+        dialog = QtWidgets.QFileDialog(self.window)
+        dialog.setWindowTitle('Maze - Save as' if save else 'Maze - open')
+        if not save:
+            dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        dialog.setViewMode(QtWidgets.QFileDialog.Detail)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        dialog.setDirectory(QtCore.QDir.home())
+        dialog.setNameFilters([self.window.tr('Text Files (*.txt)'), self.window.tr('All Files (*)')])
+        dialog.setDefaultSuffix('.txt')
+        if dialog.exec():
+            return dialog.selectedFiles()
+        return []
+
     def new_dialog(self):
         dialog = QtWidgets.QDialog(self.window)
         with open(filepath('static/ui/newmaze.ui')) as f:
@@ -257,6 +325,7 @@ class MazeGUI:
         cols = dialog.findChild(QtWidgets.QSpinBox, 'widthBox').value()
         rows = dialog.findChild(QtWidgets.QSpinBox, 'heightBox').value()
         self.grid.change_array(np.zeros((rows, cols), dtype=np.int8))
+        self.reset_file()
 
     def about_dialog(self):
         dialog = QtWidgets.QDialog(self.window)
