@@ -4,6 +4,7 @@ import os
 import json
 import configparser
 from collections import OrderedDict
+from bresenham import bresenham
 from .analysis import analyze, NoPathExistsException
 
 
@@ -20,7 +21,7 @@ def filepath(rel_path):
     return os.path.join(BASEDIR, rel_path)
 
 SVG_LINES = {i: QtSvg.QSvgRenderer(filepath(LINE_MASK.format(i))) for i in range(1, 16)}
-SVG_ARROWS = {i:QtSvg.QSvgRenderer(filepath(ARROW_MASK.format(DIRECTIONS[i]))) for i in range(4)}
+SVG_ARROWS = {i: QtSvg.QSvgRenderer(filepath(ARROW_MASK.format(DIRECTIONS[i]))) for i in range(4)}
 
 
 class MazeElement:
@@ -32,7 +33,6 @@ class MazeElement:
         self.svg = QtSvg.QSvgRenderer(self.img_path)
         self.icon = QtGui.QIcon(self.img_path)
 
-
 class GridWidget(QtWidgets.QWidget):
 
     def __init__(self, array, elements, cell_size=32):
@@ -43,6 +43,7 @@ class GridWidget(QtWidgets.QWidget):
         self.starts = None
         self.paths = None
         self.dirs = None
+        self.last_mouse = None
         self.change_array(array)
         self.elements = elements
 
@@ -76,16 +77,38 @@ class GridWidget(QtWidgets.QWidget):
                     self.elements[self.array[row, col]].svg.render(painter, rect)
 
     def mousePressEvent(self, event):
-        row, col = self.px2table(event.x(), event.y())
-        if 0 <= row < self.array.shape[0] and 0 <= col < self.array.shape[1]:
-            if self.array[row, col] == self.selected:
-                return
-            elif (self.array[row, col] > 1) and (self.selected <= 1):  # was start and now is not
-                self.starts.remove((row, col))
-            elif (self.selected > 1) and (self.array[row, col] <= 1):  # wasnt start and now is
-                self.starts.add((row, col))
-            self.array[row, col] = self.selected
+        step = self.px2table(event.x(), event.y())
+        if self.inside_array(*step):
+            if self.put_on_cell(*step):
+                self.update_array()
+        self.last_mouse = step
+
+    def mouseMoveEvent(self, event):
+        step = self.px2table(event.x(), event.y())
+        path = list(bresenham(*self.last_mouse, *step))
+        any_change = False
+        for step in path:
+            if self.inside_array(*step):
+                any_change |= self.put_on_cell(*step)
+        if any_change:
             self.update_array()
+        self.last_mouse = step
+
+    def mouseReleaseEvent(self, event):
+        self.last_mouse = None
+
+    def inside_array(self, row, col):
+        return 0 <= row < self.array.shape[0] and 0 <= col < self.array.shape[1]
+
+    def put_on_cell(self, row, col):
+        if self.array[row, col] == self.selected:
+            return False
+        elif (self.array[row, col] > 1) and (self.selected <= 1):  # was start and now is not
+            self.starts.remove((row, col))
+        elif (self.selected > 1) and (self.array[row, col] <= 1):  # wasnt start and now is
+            self.starts.add((row, col))
+        self.array[row, col] = self.selected
+        return True
 
     def change_array(self, array):
         self.array = array
