@@ -34,10 +34,48 @@ class MazeElement:
         self.icon = QtGui.QIcon(self.img_path)
 
 
+class MazeGUIStatus:
+    POS_MASK = "Position: {}, {}  "
+    SIZE_MASK = "Size: {}×{}  "
+    ZOOM_MASK = "Zoom: {}%  "
+    DRAG_MASK = "Dragging: {}  "
+
+    def __init__(self, statusbar):
+        self.statusbar = statusbar
+        self.position = QtWidgets.QLabel(statusbar)
+        self.set_position(0, 0)
+        statusbar.addWidget(self.position)
+        self.size = QtWidgets.QLabel(statusbar)
+        self.set_size(0, 0)
+        statusbar.addWidget(self.size)
+        self.zoom = QtWidgets.QLabel(statusbar)
+        self.set_zoom(100)
+        statusbar.addWidget(self.zoom)
+        self.dragging = QtWidgets.QLabel(statusbar)
+        self.set_dragging("")
+        statusbar.addWidget(self.dragging)
+
+    def set_position(self, row, col):
+        self.position.setText(self.POS_MASK.format(row+1, col+1))
+
+    def set_size(self, rows, cols):
+        self.size.setText(self.SIZE_MASK.format(rows, cols))
+
+    def set_zoom(self, percentage):
+        self.zoom.setText(self.ZOOM_MASK.format(percentage))
+
+    def set_dragging(self, name):
+        if name == "":
+            self.dragging.setText("")
+        else:
+            self.dragging.setText(self.DRAG_MASK.format(name))
+
+
 class GridWidget(QtWidgets.QWidget):
 
-    def __init__(self, array, elements, cell_size=32):
+    def __init__(self, array, status, elements, cell_size=32):
         super().__init__()
+        self.status = status
         self.cell_size = cell_size
         self.init_size = cell_size
         self.array = None
@@ -47,6 +85,7 @@ class GridWidget(QtWidgets.QWidget):
         self.last_mouse = None
         self.change_array(array)
         self.elements = elements
+        self.setMouseTracking(True)
 
     def px2table(self, x, y):
         return y // self.cell_size, x // self.cell_size
@@ -83,9 +122,15 @@ class GridWidget(QtWidgets.QWidget):
             if self.put_on_cell(*step):
                 self.update_array()
         self.last_mouse = step
+        self.status.set_dragging(self.elements[self.selected].name)
 
     def mouseMoveEvent(self, event):
         step = self.px2table(event.x(), event.y())
+        if not self.inside_array(*step):
+            return
+        self.status.set_position(*step)
+        if self.last_mouse is None:
+            return
         path = list(bresenham(*self.last_mouse, *step))
         any_change = False
         for step in path:
@@ -97,11 +142,12 @@ class GridWidget(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, event):
         self.last_mouse = None
+        self.status.set_dragging("")
 
     def wheelEvent(self, event):
         if event.modifiers() != QtCore.Qt.ControlModifier:
             return
-        event.accept() # no propagation to scroll area
+        event.accept()  # no propagation to scroll area
         if event.angleDelta().y() > 0:
             self.zoom_in()
         else:
@@ -125,6 +171,7 @@ class GridWidget(QtWidgets.QWidget):
         indices = list(np.where(array > 1))
         self.starts = set(zip(list(indices[0]), list(indices[1])))
         self.update_array()
+        self.status.set_size(*array.shape)
 
     def update_array(self):
         self.make_paths()
@@ -173,22 +220,22 @@ class GridWidget(QtWidgets.QWidget):
         self.setMaximumSize(*size)
         self.resize(*size)
 
-    # TODO: display zoom at status bar, wheel?
     def zoom_in(self):
         self.cell_size += max(int(self.cell_size * 0.1), 1)
         self.update_size()
+        self.status.set_zoom(100 * self.cell_size // self.init_size)
 
-    # TODO: display zoom at status bar, wheel?
     def zoom_out(self):
         if self.cell_size < 8:  # TODO: from config
             return
         self.cell_size -= max(int(self.cell_size * 0.1), 1)
         self.update_size()
+        self.status.set_zoom(100 * self.cell_size // self.init_size)
 
-    # TODO: display zoom at status bar
     def zoom_reset(self):
         self.cell_size = self.init_size
         self.update_size()
+        self.status.set_zoom(100)
 
     def save_to_file(self, filename):
         np.savetxt(filename, self.array, fmt='%d')
@@ -208,6 +255,8 @@ class MazeGUI:
         self.window = QtWidgets.QMainWindow()
         with open(filepath('static/ui/mainwindow.ui')) as f:
             uic.loadUi(f, self.window)
+        statusbar = self.window.findChild(QtWidgets.QStatusBar, 'statusbar')
+        self.status = MazeGUIStatus(statusbar)
         self._setup_grid()
         self._setup_palette()
         self._setup_actions()
@@ -219,7 +268,7 @@ class MazeGUI:
         self.elements = OrderedDict()
         with open(filepath(self.config['palette'])) as f:
             data = json.load(f, object_pairs_hook=OrderedDict)
-            data = [(int(k), MazeElement(v, k)) for k,v in data.items()]
+            data = [(int(k), MazeElement(v, k)) for k, v in data.items()]
             self.elements = OrderedDict(data)
 
     def _setup_grid(self):
@@ -230,7 +279,8 @@ class MazeGUI:
             ),
             dtype=np.int8
         )
-        self.grid = GridWidget(new_array, self.elements, int(self.config['cell_size']))
+        self.grid = GridWidget(new_array, self.status,
+                               self.elements, int(self.config['cell_size']))
         scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
         scroll_area.setWidget(self.grid)
 
