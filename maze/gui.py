@@ -265,7 +265,7 @@ class MazeGUI:
     def file_open(self):
         paths = self.file_dialog(False)
         if len(paths) > 0:
-            self.grid_save(paths[0])
+            self.grid_open(paths[0])
 
     def file_save(self):
         if self.filename is None:
