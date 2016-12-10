@@ -98,6 +98,15 @@ class GridWidget(QtWidgets.QWidget):
     def mouseReleaseEvent(self, event):
         self.last_mouse = None
 
+    def wheelEvent(self, event):
+        if event.modifiers() != QtCore.Qt.ControlModifier:
+            return
+        event.accept() # no propagation to scroll area
+        if event.angleDelta().y() > 0:
+            self.zoom_in()
+        else:
+            self.zoom_out()
+
     def inside_array(self, row, col):
         return 0 <= row < self.array.shape[0] and 0 <= col < self.array.shape[1]
 
