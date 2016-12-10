@@ -4,15 +4,19 @@ import os
 import json
 import configparser
 from collections import OrderedDict
+from .analysis import analyze, NoPathExistsException
 
 
 VALUE_ROLE = QtCore.Qt.UserRole
 CONFIG_FILE = 'static/gui.cfg'
+LINES_MASK = 'static/pics/lines/{}.svg'
 BASEDIR = os.path.dirname(__file__)
 
 
 def filepath(rel_path):
     return os.path.join(BASEDIR, rel_path)
+
+SVG_LINES = {i: QtSvg.QSvgRenderer(filepath(LINES_MASK.format(i))) for i in range(1, 16)}
 
 
 class MazeElement:
@@ -31,9 +35,10 @@ class GridWidget(QtWidgets.QWidget):
         super().__init__()
         self.cell_size = cell_size
         self.init_size = cell_size
-        self.array = array
+        self.array = None
+        self.starts = None
+        self.change_array(array)
         self.elements = elements
-        self.update_size()
 
     def px2table(self, x, y):
         return y // self.cell_size, x // self.cell_size
@@ -51,25 +56,72 @@ class GridWidget(QtWidgets.QWidget):
         col_max = min(col_max + 1, self.array.shape[1])
         painter = QtGui.QPainter(self)
         for row in range(row_min, row_max):
-            for column in range(col_min, col_max):
-                x, y = self.table2px(row, column)
+            for col in range(col_min, col_max):
+                x, y = self.table2px(row, col)
                 rect = QtCore.QRectF(x, y, self.cell_size, self.cell_size)
                 white = QtGui.QColor(255, 255, 255)
                 painter.fillRect(rect, QtGui.QBrush(white))
                 self.elements[0].svg.render(painter, rect)
-                if self.array[row, column] != 0:
-                    self.elements[self.array[row, column]].svg.render(painter, rect)
+                if self.paths[row, col] != 0:
+                    SVG_LINES[self.paths[row, col]].render(painter, rect)
+                if self.array[row, col] != 0:
+                    self.elements[self.array[row, col]].svg.render(painter, rect)
 
     def mousePressEvent(self, event):
-        row, column = self.px2table(event.x(), event.y())
-        if 0 <= row < self.array.shape[0] and 0 <= column < self.array.shape[1]:
-            self.array[row, column] = self.selected
-            self.update(*self.table2px(row, column), self.cell_size, self.cell_size)
+        row, col = self.px2table(event.x(), event.y())
+        if 0 <= row < self.array.shape[0] and 0 <= col < self.array.shape[1]:
+            if self.array[row, col] == self.selected:
+                return
+            elif (self.array[row, col] > 1) and (self.selected <= 1):  # was start and now is not
+                self.starts.remove((row, col))
+            elif (self.selected > 1) and (self.array[row, col] <= 1):  # wasnt start and now is
+                self.starts.add((row, col))
+            self.array[row, col] = self.selected
+            self.update_array()
 
     def change_array(self, array):
         self.array = array
+        self.starts = set()
+        self.update_array()
+
+    def update_array(self):
+        self.make_paths()
         self.update_size()
         self.update()
+
+    def make_paths(self):
+        analysis = analyze(self.array)
+        paths = np.zeros(self.array.shape, dtype=np.int8)
+        for start in self.starts:
+            try:
+                path = analysis.path(*start)
+                for step in path:
+                    x, y = step
+                    d = analysis.directions[x, y]
+                    if d == b'<':
+                        if paths[x, y] not in {2, 3, 6, 7, 10, 11, 14, 15}:
+                            paths[x, y] += 2
+                        if paths[x, y-1] < 8:
+                            paths[x, y-1] += 8
+                    elif d == b'>':
+                        if paths[x, y] < 8:
+                            paths[x, y] += 8
+                        if paths[x, y+1] not in {2, 3, 6, 7, 10, 11, 14, 15}:
+                            paths[x, y+1] += 2
+                    elif d == b'v':
+                        if paths[x, y] not in {4, 5, 6, 7, 12, 13, 14, 15}:
+                            paths[x, y] += 4
+                        if paths[x+1, y] % 2 == 0:
+                            paths[x+1, y] += 1
+                    elif d == b'^':
+                        if paths[x, y] % 2 == 0:
+                            paths[x, y] += 1
+                        if paths[x-1, y] not in {4, 5, 6, 7, 12, 13, 14, 15}:
+                            paths[x-1, y] += 4
+            except NoPathExistsException:
+                pass
+        self.paths = paths
+
 
     def update_size(self):
         size = self.table2px(*self.array.shape)
@@ -135,7 +187,7 @@ class MazeGUI:
 
         def item_activated():
             for item in self.palette.selectedItems():
-                self.grid.selected = item.data(VALUE_ROLE)
+                self.grid.selected = int(item.data(VALUE_ROLE))
 
         for e in self.elements.values():
             item = QtWidgets.QListWidgetItem(e.name)
