@@ -30,12 +30,10 @@ class GridWidget(QtWidgets.QWidget):
     def __init__(self, array, elements, cell_size=32):
         super().__init__()
         self.cell_size = cell_size
+        self.init_size = cell_size
         self.array = array
         self.elements = elements
-        size = self.table2px(*array.shape)
-        self.setMinimumSize(*size)
-        self.setMaximumSize(*size)
-        self.resize(*size)
+        self.update_size()
 
     def px2table(self, x, y):
         return y // self.cell_size, x // self.cell_size
@@ -69,11 +67,32 @@ class GridWidget(QtWidgets.QWidget):
             self.update(*self.table2px(row, column), self.cell_size, self.cell_size)
 
     def change_array(self, array):
-        size = self.table2px(*array.shape)
+        self.array = array
+        self.update_size()
+        self.update()
+
+    def update_size(self):
+        size = self.table2px(*self.array.shape)
         self.setMinimumSize(*size)
         self.setMaximumSize(*size)
         self.resize(*size)
-        self.update()
+
+    # TODO: display zoom at status bar, wheel?
+    def zoom_in(self):
+        self.cell_size += max(int(self.cell_size * 0.1), 1)
+        self.update_size()
+
+    # TODO: display zoom at status bar, wheel?
+    def zoom_out(self):
+        if self.cell_size < 8:  # TODO: from config
+            return
+        self.cell_size -= max(int(self.cell_size * 0.1), 1)
+        self.update_size()
+
+    # TODO: display zoom at status bar
+    def zoom_reset(self):
+        self.cell_size = self.init_size
+        self.update_size()
 
 
 class MazeGUI:
@@ -87,7 +106,7 @@ class MazeGUI:
             uic.loadUi(f, self.window)
         self._setup_grid()
         self._setup_palette()
-        self._setup_dialogs()
+        self._setup_actions()
 
     def _find(self, type, name):
         return self.window.findChild(type, name)
@@ -126,11 +145,17 @@ class MazeGUI:
         self.palette.itemSelectionChanged.connect(item_activated)
         self.palette.setCurrentRow(1)
 
-    def _setup_dialogs(self):
+    def _setup_actions(self):
         action = self.window.findChild(QtWidgets.QAction, 'actionNew')
         action.triggered.connect(self.new_dialog)
         action = self.window.findChild(QtWidgets.QAction, 'actionAbout')
         action.triggered.connect(self.about_dialog)
+        action = self.window.findChild(QtWidgets.QAction, 'actionZoomIn')
+        action.triggered.connect(self.grid.zoom_in)
+        action = self.window.findChild(QtWidgets.QAction, 'actionZoomOut')
+        action.triggered.connect(self.grid.zoom_out)
+        action = self.window.findChild(QtWidgets.QAction, 'actionZoomReset')
+        action.triggered.connect(self.grid.zoom_reset)
 
     def run(self):
         self.window.show()
