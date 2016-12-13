@@ -343,14 +343,16 @@ class MazeGUI:
             self.grid.save_to_file(filename)
             self.set_file(filename)
         except:
-            pass  # TODO: Show error msg
+            err = QtWidgets.QErrorMessage(self.window)
+            err.showMessage("Couldn't save to selected file: {}".format(filename))
 
     def grid_open(self, filename):
         try:
             self.grid.load_from_file(filename)
             self.set_file(filename)
         except:
-            pass  # TODO: Show error msg
+            err = QtWidgets.QErrorMessage(self.window)
+            err.showMessage("Couldn't open selected file: {}".format(filename))
 
     def set_file(self, filename):
         self.window.setWindowTitle('Maze: '+filename)
