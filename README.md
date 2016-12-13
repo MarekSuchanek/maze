@@ -1,6 +1,6 @@
 # Maze analyzer
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GNU GPL v3-blue.svg)](LICENSE)
 [![Build Status](https://travis-ci.com/MarekSuchanek/maze.svg?token=XD73y3snHDycemSiHx3H&branch=master)](https://travis-ci.com/MarekSuchanek/maze)
 [![Version](https://img.shields.io/badge/release-v0.3-orange.svg)](setup.py)
 
