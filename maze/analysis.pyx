@@ -21,12 +21,10 @@ cdef struct qitem:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef bool directions2reachable(np.ndarray[np.int8_t, ndim=2] directions, int w, int h):
-    with cython.nogil:
-        for x in range(w):
-            for y in range(h):
-                with cython.gil:
-                    if directions[x, y] == ord(b' '):
-                        return False
+    for x in range(w):
+        for y in range(h):
+            if directions[x, y] == ord(b' '):
+                return False
     return True
 
 
@@ -40,16 +38,14 @@ cpdef flood(np.ndarray[np.int8_t, ndim=2] maze, int w, int h):
     distances = np.full((w, h), -1, dtype='int32')
     directions = np.full((w, h), b' ', dtype=('a', 1))
 
-    with cython.nogil:
-        for x in range(w):
-            for y in range(h):
-                with cython.gil:
-                    if maze[x, y] < 0:
-                        directions[x, y] = b'#'
-                    elif maze[x, y] == 1:
-                        q.push(qitem(x, y, 0))
-                        distances[x, y] = 0
-                        directions[x, y] = b'X'
+    for x in range(w):
+        for y in range(h):
+            if maze[x, y] < 0:
+                directions[x, y] = b'#'
+            elif maze[x, y] == 1:
+                q.push(qitem(x, y, 0))
+                distances[x, y] = 0
+                directions[x, y] = b'X'
 
     cdef coords *dir_offsets = [coords(1, 0), coords(-1, 0), coords(0, 1), coords(0, -1)]
     cdef np.int8_t *dir_chars = [b'^', b'v', b'<', b'>']
