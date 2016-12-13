@@ -164,7 +164,8 @@ class GridWidget(QtWidgets.QWidget):
             self.zoom_out()
 
     def inside_array(self, row, col):
-        return 0 <= row < self.array.shape[0] and 0 <= col < self.array.shape[1]
+        return 0 <= row < self.array.shape[0] and \
+               0 <= col < self.array.shape[1]
 
     def put_on_cell(self, row, col):
         if self.array[row, col] == self.selected:
@@ -311,7 +312,8 @@ class MazeGUI:
             ),
             dtype=np.int8
         )
-        self.grid = GridWidget(new_array, self.status, self.elements, self.config)
+        self.grid = GridWidget(new_array, self.status,
+                               self.elements, self.config)
         scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
         scroll_area.setWidget(self.grid)
 
@@ -376,7 +378,9 @@ class MazeGUI:
         reply = QtWidgets.QMessageBox.question(
             self.window, 'Maze - Unsaved changes',
             'Do you want to save unsaved changes?',
-            buttons = QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel,
+            buttons = QtWidgets.QMessageBox.Yes |
+                      QtWidgets.QMessageBox.No |
+                      QtWidgets.QMessageBox.Cancel,
             defaultButton = QtWidgets.QMessageBox.Cancel
         )
         if reply == QtWidgets.QMessageBox.Cancel:
@@ -420,7 +424,10 @@ class MazeGUI:
             dialog.setWindowTitle('Maze - Open')
         dialog.setViewMode(QtWidgets.QFileDialog.Detail)
         dialog.setDirectory(QtCore.QDir.home())
-        dialog.setNameFilters([self.window.tr('Text Files (*.txt)'), self.window.tr('All Files (*)')])
+        dialog.setNameFilters([
+            self.window.tr('Text Files (*.txt)'),
+            self.window.tr('All Files (*)')
+        ])
         dialog.setDefaultSuffix('.txt')
         if dialog.exec():
             return dialog.selectedFiles()
