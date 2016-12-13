@@ -2,11 +2,13 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Build Status](https://travis-ci.com/MarekSuchanek/maze.svg?token=XD73y3snHDycemSiHx3H&branch=master)](https://travis-ci.com/MarekSuchanek/maze)
+[![Version](https://img.shields.io/badge/release-v0.3-orange.svg)](setup.py)
+
 
 This project is series of tasks for [MI-PYT](https://github.com/cvut/MI-PYT) 
 subject from [FIT CTU in Prague](https://fit.cvut.cz).
 
-It takes a maze (matrix of numbers), where:
+**Analysis** takes a maze (matrix of numbers), where:
 
 * wall (impassable cell) -> `number < 0`
 * accessible cell -> `number >= 0`
@@ -25,6 +27,9 @@ Analysis of maze produces an object with ([original task formulation](https://gi
 * method `path(row, column)` = build array of coords representing the 
   shorest path (or one of shortests paths if there are more). If no path
   exists from specified start, then `NoPathExistsException` is raised.
+
+**Maze GUI** is PyQt simple user interface for creating, browsing, 
+storing and loading mazes.
 
 ## Installation
 
@@ -49,6 +54,8 @@ python setup.py install
 ```
 
 ## Usage
+
+### Maze analysis
 
 ```
 >>> from maze import analyze
@@ -76,9 +83,31 @@ Traceback (most recent call last):
 maze.NoPathExistsException
 ```
 
+### Maze GUI
+
+```
+python -m maze
+```
+
+Within GUI you can:
+* create new maze (with specified width, height and fill type)
+* load/save maze to/from file
+* add elements to the maze (grass, walls, goals, dudes)
+  * elements can be dragged by holding mouse button, moving and
+    then releasing the button
+  * removing element by putting grass on that field
+* zoom in/out (via toolbar actions and/or `Ctrl + <wheel>`)
+* there is some info with credits and info in _About_ (`F1`)
+  * based on [MI-PYT](https://github.com/cvut/MI-PYT) tutorial by [@hroncok](https://github.com/hroncok) and [@encukou](https://github.com/encukou)
+  * graphics by [Kenney](http://kenney.nl/) (available at [OpenGameArt.org](http://opengameart.org/users/kenney))
+* shortest path show up (if exists) for each dude in maze
+* there is some useful basic information in the status bar (position, 
+  size, ...)
+
 ## Testing
 
-After installing dependencies and compilation you can run tests with `pytest`:
+After installing dependencies and compilation you can run (analysis) 
+tests with `pytest`:
 
 ```
 python -m pytest

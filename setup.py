@@ -8,7 +8,7 @@ with open('README.md') as f:
 
 setup(
     name='maze',
-    version=0.2,
+    version=0.3,
     keywords='maze analysis matrix cython',
     description='Simple python maze analyzer for finding shortest path',
     long_description=long_description,
