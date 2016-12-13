@@ -381,12 +381,16 @@ class MazeGUI:
         dialog = QtWidgets.QDialog(self.window)
         with open(filepath('static/ui/newmaze.ui')) as f:
             uic.loadUi(f, dialog)
+        fill_select = dialog.findChild(QtWidgets.QComboBox, 'selectFill')
+        for e in self.elements.values():
+            fill_select.addItem(e.icon, e.name, e.value)
         result = dialog.exec()
         if result == QtWidgets.QDialog.Rejected:
             return
         cols = dialog.findChild(QtWidgets.QSpinBox, 'widthBox').value()
         rows = dialog.findChild(QtWidgets.QSpinBox, 'heightBox').value()
-        self.grid.change_array(np.zeros((rows, cols), dtype=np.int8))
+        fill = fill_select.currentData()
+        self.grid.change_array(np.full((rows, cols), fill, dtype=np.int8))
         self.reset_file()
 
     def about_dialog(self):

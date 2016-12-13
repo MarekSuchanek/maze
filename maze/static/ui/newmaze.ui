@@ -7,11 +7,11 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>158</height>
+    <height>188</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>New maze</string>
   </property>
   <property name="windowIcon">
    <iconset>
@@ -23,7 +23,7 @@
      <item row="0" column="0">
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>Width:</string>
+        <string>Width</string>
        </property>
        <property name="buddy">
         <cstring>widthBox</cstring>
@@ -59,6 +59,19 @@
         <number>1000</number>
        </property>
       </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Fill</string>
+       </property>
+       <property name="buddy">
+        <cstring>selectFill</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="selectFill"/>
      </item>
     </layout>
    </item>
