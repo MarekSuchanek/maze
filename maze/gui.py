@@ -80,11 +80,13 @@ class MazeGUIStatus:
 
 class GridWidget(QtWidgets.QWidget):
 
-    def __init__(self, array, status, elements, cell_size=32):
+    def __init__(self, array, status, elements, config):
         super().__init__()
         self.status = status
-        self.cell_size = cell_size
-        self.init_size = cell_size
+        self.config = config
+        self.cell_size = int(config['cell_size'])
+        self.init_size = int(config['cell_size'])
+        self.min_cell_size = int(config['min_cell_size'])
         self.array = None
         self.starts = None
         self.paths = None
@@ -169,7 +171,7 @@ class GridWidget(QtWidgets.QWidget):
             return False
         elif (self.array[row, col] > 1) and (self.selected <= 1):  # was start and now is not
             self.starts.remove((row, col))
-        elif (self.selected > 1) and (self.array[row, col] <= 1):  # wasnt start and now is
+        elif (self.selected > 1) and (self.array[row, col] <= 1):  # wasn't start and now is
             self.starts.add((row, col))
         self.array[row, col] = self.selected
         self.set_changed(True)
@@ -240,7 +242,7 @@ class GridWidget(QtWidgets.QWidget):
         self.status.set_zoom(100 * self.cell_size // self.init_size)
 
     def zoom_out(self):
-        if self.cell_size < 8:  # TODO: from config
+        if self.cell_size < self.min_cell_size:
             return
         self.cell_size -= max(int(self.cell_size * 0.1), 1)
         self.update_size()
@@ -307,8 +309,7 @@ class MazeGUI:
             ),
             dtype=np.int8
         )
-        self.grid = GridWidget(new_array, self.status,
-                               self.elements, int(self.config['cell_size']))
+        self.grid = GridWidget(new_array, self.status, self.elements, self.config)
         scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
         scroll_area.setWidget(self.grid)
 
