@@ -39,6 +39,7 @@ class MazeGUIStatus:
     SIZE_MASK = "Size: {}×{}  "
     ZOOM_MASK = "Zoom: {}%  "
     DRAG_MASK = "Dragging: {}  "
+    UNSAVED_TXT = "UNSAVED  "
 
     def __init__(self, statusbar):
         self.statusbar = statusbar
@@ -51,6 +52,9 @@ class MazeGUIStatus:
         self.zoom = QtWidgets.QLabel(statusbar)
         self.set_zoom(100)
         statusbar.addWidget(self.zoom)
+        self.unsaved = QtWidgets.QLabel(statusbar)
+        self.set_unsaved(True)
+        statusbar.addWidget(self.unsaved)
         self.dragging = QtWidgets.QLabel(statusbar)
         self.set_dragging("")
         statusbar.addWidget(self.dragging)
@@ -63,6 +67,9 @@ class MazeGUIStatus:
 
     def set_zoom(self, percentage):
         self.zoom.setText(self.ZOOM_MASK.format(percentage))
+
+    def set_unsaved(self, unsaved):
+        self.unsaved.setText(self.UNSAVED_TXT if unsaved else '')
 
     def set_dragging(self, name):
         if name == "":
@@ -86,6 +93,7 @@ class GridWidget(QtWidgets.QWidget):
         self.change_array(array)
         self.elements = elements
         self.setMouseTracking(True)
+        self.changed = False
 
     def px2table(self, x, y):
         return y // self.cell_size, x // self.cell_size
@@ -164,9 +172,11 @@ class GridWidget(QtWidgets.QWidget):
         elif (self.selected > 1) and (self.array[row, col] <= 1):  # wasnt start and now is
             self.starts.add((row, col))
         self.array[row, col] = self.selected
+        self.set_changed(True)
         return True
 
     def change_array(self, array):
+        self.set_changed(False)
         self.array = array
         indices = list(np.where(array > 1))
         self.starts = set(zip(list(indices[0]), list(indices[1])))
@@ -177,6 +187,10 @@ class GridWidget(QtWidgets.QWidget):
         self.make_paths()
         self.update_size()
         self.update()
+
+    def set_changed(self, changed):
+        self.changed = changed
+        self.status.set_unsaved(changed)
 
     def make_paths(self):
         analysis = analyze(self.array)
@@ -245,6 +259,20 @@ class GridWidget(QtWidgets.QWidget):
         self.change_array(array)
 
 
+class MazeMainWindow(QtWidgets.QMainWindow):
+
+    def __init__(self, maze_gui):
+        super().__init__()
+        self.gui = maze_gui
+
+    def closeEvent(self, event):
+        if self.gui.ask_save():
+            event.accept()
+            self.close()
+        else:
+            event.ignore()
+
+
 class MazeGUI:
 
     def __init__(self, config):
@@ -252,7 +280,7 @@ class MazeGUI:
         self.config = config['gui']
         self.filename = None
         self._setup_elements()
-        self.window = QtWidgets.QMainWindow()
+        self.window = MazeMainWindow(self)
         with open(filepath('static/ui/mainwindow.ui')) as f:
             uic.loadUi(f, self.window)
         statusbar = self.window.findChild(QtWidgets.QStatusBar, 'statusbar')
@@ -322,6 +350,9 @@ class MazeGUI:
         return self.app.exec()
 
     def file_open(self):
+        if self.grid.changed:
+            if not self.ask_save():
+                return  # don't want to open now
         paths = self.file_dialog(False)
         if len(paths) > 0:
             self.grid_open(paths[0])
@@ -337,7 +368,19 @@ class MazeGUI:
         if len(paths) > 0:
             self.grid_save(paths[0])
 
-    # TODO: ask for save when there are unsaved changes on close
+    def ask_save(self):
+        reply = QtWidgets.QMessageBox.question(
+            self.window, 'Maze - Unsaved changes',
+            'Do you want to save unsaved changes?',
+            buttons = QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.Cancel,
+            defaultButton = QtWidgets.QMessageBox.Cancel
+        )
+        if reply == QtWidgets.QMessageBox.Cancel:
+            return False  # cancel action
+        elif reply == QtWidgets.QMessageBox.Yes:
+            self.file_save()
+        return True  # can continue (save/unsaved)
+
     def grid_save(self, filename):
         try:
             self.grid.save_to_file(filename)
@@ -370,7 +413,7 @@ class MazeGUI:
         else:
             dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
             dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-            dialog.setWindowTitle('Maze - open')
+            dialog.setWindowTitle('Maze - Open')
         dialog.setViewMode(QtWidgets.QFileDialog.Detail)
         dialog.setDirectory(QtCore.QDir.home())
         dialog.setNameFilters([self.window.tr('Text Files (*.txt)'), self.window.tr('All Files (*)')])
@@ -380,6 +423,9 @@ class MazeGUI:
         return []
 
     def new_dialog(self):
+        if self.grid.changed:
+            if not self.ask_save():
+                return  # don't want to new now
         dialog = QtWidgets.QDialog(self.window)
         with open(filepath('static/ui/newmaze.ui')) as f:
             uic.loadUi(f, dialog)
