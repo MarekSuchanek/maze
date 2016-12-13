@@ -1,3 +1,4 @@
+import glob
 from setuptools import setup, find_packages
 from Cython.Build import cythonize
 import numpy
@@ -15,8 +16,19 @@ setup(
     author_email='suchama4@fit.cvut.cz',
     license='MIT',
     packages=find_packages(),
+    package_data={
+        'maze': [
+            'static/*.cfg',
+            'static/*.json',
+            'static/ui/*.ui',
+            'static/pics/*.svg',
+            'static/pics/README.md',
+            'static/pics/arrows/*.svg',
+            'static/pics/lines/*.svg',
+        ]
+    },
     ext_modules=cythonize(
-        'maze.pyx',
+        glob.glob('maze/*.pyx'),
         language_level=3,
         include_dirs=[numpy.get_include()],
         language="c++"
@@ -26,6 +38,8 @@ setup(
         'Cython>=0.25.1',
         'numpy>=1.11.2',
         'py>=1.4.31',
+        'PyQt5>=5.7',
+        'bresenham>=0.1',
     ],
     setup_requires=[
         'pytest-runner'

@@ -95,8 +95,8 @@ ENV/
 tests2
 
 # Own
-maze.c
-maze.cpp
-maze.html
+maze/*.c
+maze/*.cpp
+*.html
 generate.py
 random.csv

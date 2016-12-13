@@ -2,3 +2,5 @@ numpy>=1.11.2
 py>=1.4.31
 pytest>=3.0.4
 Cython>=0.25.1
+PyQt5==5.7
+bresenham==0.1

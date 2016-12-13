@@ -1,0 +1,38 @@
+{
+  "0": {
+    "name": "Grass",
+    "img": "static/pics/grass.svg"
+  },
+  "-1": {
+    "name": "Wall",
+    "img": "static/pics/wall.svg"
+  },
+  "-2": {
+    "name": "Strong wall",
+    "img": "static/pics/wall2.svg"
+  },
+  "1": {
+    "name": "Castle (goal)",
+    "img": "static/pics/castle.svg"
+  },
+  "2": {
+    "name": "Light dude",
+    "img": "static/pics/dude1.svg"
+  },
+  "3": {
+    "name": "Yellow dude",
+    "img": "static/pics/dude2.svg"
+  },
+  "4": {
+    "name": "Pink dude",
+    "img": "static/pics/dude3.svg"
+  },
+  "5": {
+    "name": "Blue dude",
+    "img": "static/pics/dude4.svg"
+  },
+  "6": {
+    "name": "Green dude",
+    "img": "static/pics/dude5.svg"
+  }
+}
