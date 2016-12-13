@@ -260,6 +260,7 @@ class GridWidget(QtWidgets.QWidget):
         self.status.set_zoom(100)
 
     def save_to_file(self, filename):
+        self.set_changed(False)
         np.savetxt(filename, self.array, fmt='%d')
 
     def load_from_file(self, filename):
