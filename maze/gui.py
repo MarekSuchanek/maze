@@ -362,11 +362,14 @@ class MazeGUI:
 
     def file_dialog(self, save):
         dialog = QtWidgets.QFileDialog(self.window)
-        dialog.setWindowTitle('Maze - Save as' if save else 'Maze - open')
-        if not save:
+        if save:
+            dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+            dialog.setWindowTitle('Maze - Save as')
+        else:
             dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+            dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+            dialog.setWindowTitle('Maze - open')
         dialog.setViewMode(QtWidgets.QFileDialog.Detail)
-        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
         dialog.setDirectory(QtCore.QDir.home())
         dialog.setNameFilters([self.window.tr('Text Files (*.txt)'), self.window.tr('All Files (*)')])
         dialog.setDefaultSuffix('.txt')
