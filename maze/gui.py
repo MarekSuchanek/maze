@@ -198,6 +198,8 @@ class GridWidget(QtWidgets.QWidget):
         analysis = analyze(self.array)
         paths = np.zeros(self.array.shape, dtype=np.int8)
         dirs = np.zeros(self.array.shape, dtype=np.int8)
+        hor_set = frozenset([2, 3, 6, 7, 10, 11, 14, 15])
+        ver_set = frozenset([4, 5, 6, 7, 12, 13, 14, 15])
         for start in self.starts:
             try:
                 path = analysis.path(*start)
@@ -206,24 +208,24 @@ class GridWidget(QtWidgets.QWidget):
                     d = analysis.directions[x, y]
                     dirs[x, y] = DIRECTIONS_MAP.get(d, 0)
                     if d == b'<':
-                        if paths[x, y] not in {2, 3, 6, 7, 10, 11, 14, 15}:
+                        if paths[x, y] not in hor_set:
                             paths[x, y] += 2
                         if paths[x, y-1] < 8:
                             paths[x, y-1] += 8
                     elif d == b'>':
                         if paths[x, y] < 8:
                             paths[x, y] += 8
-                        if paths[x, y+1] not in {2, 3, 6, 7, 10, 11, 14, 15}:
+                        if paths[x, y+1] not in hor_set:
                             paths[x, y+1] += 2
                     elif d == b'v':
-                        if paths[x, y] not in {4, 5, 6, 7, 12, 13, 14, 15}:
+                        if paths[x, y] not in ver_set:
                             paths[x, y] += 4
                         if paths[x+1, y] % 2 == 0:
                             paths[x+1, y] += 1
                     elif d == b'^':
                         if paths[x, y] % 2 == 0:
                             paths[x, y] += 1
-                        if paths[x-1, y] not in {4, 5, 6, 7, 12, 13, 14, 15}:
+                        if paths[x-1, y] not in ver_set:
                             paths[x-1, y] += 4
             except NoPathExistsException:
                 pass
