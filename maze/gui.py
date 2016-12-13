@@ -92,6 +92,7 @@ class GridWidget(QtWidgets.QWidget):
         self.paths = None
         self.dirs = None
         self.last_mouse = None
+        self.observers = []
         self.change_array(array)
         self.elements = elements
         self.setMouseTracking(True)
@@ -194,6 +195,8 @@ class GridWidget(QtWidgets.QWidget):
     def set_changed(self, changed):
         self.changed = changed
         self.status.set_unsaved(changed)
+        for o in self.observers:
+            o.change_notice()
 
     def make_paths(self):
         analysis = analyze(self.array)
@@ -263,6 +266,9 @@ class GridWidget(QtWidgets.QWidget):
         array = np.loadtxt(filename, dtype=np.int8)
         self.change_array(array)
 
+    def add_observer(self, observer):
+        self.observers.append(observer)
+
 
 class MazeMainWindow(QtWidgets.QMainWindow):
 
@@ -316,6 +322,12 @@ class MazeGUI:
                                self.elements, self.config)
         scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
         scroll_area.setWidget(self.grid)
+        self.grid.add_observer(self)
+
+    def change_notice(self):
+        if self.window.windowTitle().endswith(' *'):
+            return
+        self.window.setWindowTitle(self.window.windowTitle() + ' *')
 
     def _setup_palette(self):
         self.palette = self._find(QtWidgets.QListWidget, 'palette')
