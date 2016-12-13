@@ -351,9 +351,8 @@ class MazeGUI:
         return self.app.exec()
 
     def file_open(self):
-        if self.grid.changed:
-            if not self.ask_save():
-                return  # don't want to open now
+        if not self.ask_save():
+            return  # don't want to open now
         paths = self.file_dialog(False)
         if len(paths) > 0:
             self.grid_open(paths[0])
@@ -370,6 +369,8 @@ class MazeGUI:
             self.grid_save(paths[0])
 
     def ask_save(self):
+        if not self.grid.changed:
+            return True  # no changes, continue
         reply = QtWidgets.QMessageBox.question(
             self.window, 'Maze - Unsaved changes',
             'Do you want to save unsaved changes?',
@@ -424,9 +425,8 @@ class MazeGUI:
         return []
 
     def new_dialog(self):
-        if self.grid.changed:
-            if not self.ask_save():
-                return  # don't want to new now
+        if not self.ask_save():
+            return  # don't want to new now
         dialog = QtWidgets.QDialog(self.window)
         with open(filepath('static/ui/newmaze.ui')) as f:
             uic.loadUi(f, dialog)
