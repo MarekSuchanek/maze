@@ -300,6 +300,7 @@ class MazeGUI:
         self._setup_grid()
         self._setup_palette()
         self._setup_actions()
+        self.window.findChild(QtWidgets.QLCDNumber, 'gameScore').hide()
 
     def _find(self, type, name):
         return self.window.findChild(type, name)
@@ -362,6 +363,8 @@ class MazeGUI:
         action.triggered.connect(self.grid.zoom_out)
         action = self.window.findChild(QtWidgets.QAction, 'actionZoomReset')
         action.triggered.connect(self.grid.zoom_reset)
+        action = self.window.findChild(QtWidgets.QAction, 'actionGameMode')
+        action.triggered.connect(self.switch_mode)
 
     def run(self):
         self.window.show()
@@ -469,6 +472,16 @@ class MazeGUI:
         with open(filepath('static/ui/help.ui')) as f:
             uic.loadUi(f, dialog)
         dialog.exec()
+
+    def switch_mode(self):
+        # TODO: Check if able to switch to game mode
+        # TODO: Backup grid for switch back to edit mode
+        # TODO: Hide palette
+        # TODO: Show clocks/score
+        # TODO: Switch mode (state/strategy pattern) - clicking & drawing
+        err = QtWidgets.QErrorMessage(self.window)
+        err.showMessage("Game mode not implemented yet")
+        self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(False)
 
 
 def main():
