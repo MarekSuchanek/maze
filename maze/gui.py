@@ -1,10 +1,12 @@
 from PyQt5 import QtWidgets, QtGui, QtCore, QtSvg, uic
 import numpy as np
+import asyncio
 import os
 import json
 import configparser
 from collections import OrderedDict
 from bresenham import bresenham
+from quamash import QEventLoop
 from .analysis import analyze, NoPathExistsException
 
 
@@ -368,7 +370,9 @@ class MazeGUI:
 
     def run(self):
         self.window.show()
-        return self.app.exec()
+        loop = QEventLoop(self.app)
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
 
     def file_open(self):
         if not self.ask_save():

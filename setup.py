@@ -40,6 +40,7 @@ setup(
         'py>=1.4.31',
         'PyQt5>=5.7',
         'bresenham>=0.1',
+        'quamash>=0.5.5'
     ],
     setup_requires=[
         'pytest-runner'
