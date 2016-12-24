@@ -108,20 +108,23 @@ class GridWidget(QtWidgets.QWidget):
 
     def paintEvent(self, event):
         rect = event.rect()
+        painter = QtGui.QPainter(self)
+        self.paint_cells(rect, painter)
+
+    def paint_cells(self, rect, painter):
         row_min, col_min = self.px2table(rect.left(), rect.top())
         row_min = max(row_min, 0)
         col_min = max(col_min, 0)
         row_max, col_max = self.px2table(rect.right(), rect.bottom())
         row_max = min(row_max + 1, self.array.shape[0])
         col_max = min(col_max + 1, self.array.shape[1])
-        painter = QtGui.QPainter(self)
         for row in range(row_min, row_max):
             for col in range(col_min, col_max):
                 x, y = self.table2px(row, col)
-                rect = QtCore.QRectF(x, y, self.cell_size, self.cell_size)
+                crect = QtCore.QRectF(x, y, self.cell_size, self.cell_size)
                 white = QtGui.QColor(255, 255, 255)
-                painter.fillRect(rect, QtGui.QBrush(white))
-                self.paint_cell(row, col, painter, rect)
+                painter.fillRect(crect, QtGui.QBrush(white))
+                self.paint_cell(row, col, painter, crect)
 
     def paint_cell(self, row, col, painter, rect):
         pass
@@ -305,13 +308,13 @@ class GridGameWidget(GridWidget):
 
     def __init__(self, array, gui):
         super().__init__(array, gui)
-        self.update_array()
+        self.backup_array = np.copy(array)
+        self.analysis = analyze(self.array)
         self._setup_actors()
         gui.palette.setHidden(True)
         gui.scoreboard.setHidden(False)
         gui.scoreboard.display(0)
-        self.backup_array = np.copy(array)
-        # TODO: start game (async actors)
+        self.update()
 
     def _setup_actors(self):
         indices = list(np.where(self.array > 1))
@@ -320,14 +323,30 @@ class GridGameWidget(GridWidget):
         if len(starts) == 0:
             raise ValueError('No dudes in the maze.')
         for p in starts:
-            if self.directions[p[0], p[1]] == b' ':
+            row, col = p
+            if self.analysis.directions[row, col] == b' ':
                 raise ValueError('Some dude(s) cannot reach goal.')
-            self.actors.append(Actor(self, *p, self.array[p[0], p[1]]))
+            self.actors.append(Actor(self, row, col, self.array[row, col]))
+            self.array[row, col] = 0
+
+    def paintEvent(self, event):
+        rect = event.rect()
+        painter = QtGui.QPainter(self)
+        self.paint_cells(rect, painter)
+        self.paint_actors(painter)
 
     def paint_cell(self, row, col, painter, rect):
         self.gui.elements[0].svg.render(painter, rect)
         if self.array[row, col] != 0:
             self.gui.elements[self.array[row, col]].svg.render(painter, rect)
+
+    def paint_actors(self, painter):
+        for a in self.actors:
+            rect = QtCore.QRectF(
+                *self.table2px(a.row, a.column),
+                self.cell_size, self.cell_size
+            )
+            self.gui.elements[a.kind].svg.render(painter, rect)
 
     def mousePressEvent(self, event):
         event.accept()
@@ -335,11 +354,14 @@ class GridGameWidget(GridWidget):
         if self.inside_array(row, col):
             if self.array[row, col] == -1:
                 self.array[row, col] = 0
-                self.update_array()
-                # TODO: cant put wall if will cut the goal
+                self.analysis = analyze(self.array)
+                self.update(*self.table2px(row, col), self.cell_size, self.cell_size)
             elif self.array[row, col] == 0:
+                # TODO: cant put wall if will cut the goal
+                # TODO: cant put wall on actor cell (leaving or entering cell)
                 self.array[row, col] = -1
-                self.update_array()
+                self.analysis = analyze(self.array)
+                self.update(*self.table2px(row, col), self.cell_size, self.cell_size)
 
     def mouseMoveEvent(self, event):
         point = self.px2table(event.x(), event.y())
@@ -350,18 +372,16 @@ class GridGameWidget(GridWidget):
         event.accept()
 
     def update_actor(self, actor):
-        # TODO: update actor position
         # TODO: check if game over
-        pass
-
-    def update_array(self):
-        self.directions = analyze(self.array).directions
-        self.update_size()
-        self.update()
+        self.update(
+            *self.table2px(int(actor.row)-1, int(actor.column)-1),
+            3*self.cell_size, 3*self.cell_size
+        )
 
     def finalize(self):
-        # TODO: tell actors to cancel task
-        pass
+        for a in self.actors:
+            a.task.cancel()
+
 
 class MazeMainWindow(QtWidgets.QMainWindow):
 
@@ -586,6 +606,7 @@ class MazeGUI:
             self.grid.add_observer(self)
             self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
             self.status.set_mode(self.game)
+            self.palette.setCurrentRow(1)
         else:
             try:
                 self.grid = GridGameWidget(self.grid.array, self)

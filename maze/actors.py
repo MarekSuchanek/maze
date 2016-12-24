@@ -48,11 +48,11 @@ class Actor:
         To be reimplemented in subclasses..
         """
         while True:
-            shape = self.grid.directions.shape
+            shape = self.grid.analysis.directions.shape
             row = int(self.row)
             column = int(self.column)
             if 0 <= row < shape[0] and 0 <= column < shape[1]:
-                direction = self.grid.directions[row, column]
+                direction = self.grid.analysis.directions[row, column]
             else:
                 direction = b'?'
 
