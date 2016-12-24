@@ -8,6 +8,7 @@ from collections import OrderedDict
 from bresenham import bresenham
 from quamash import QEventLoop
 from .analysis import analyze, NoPathExistsException
+from .actors import Actor
 
 
 VALUE_ROLE = QtCore.Qt.UserRole
@@ -97,6 +98,7 @@ class GridWidget(QtWidgets.QWidget):
         self.min_cell_size = int(gui.config['min_cell_size'])
         self.array = array
         self.observers = []
+        self.setMouseTracking(True)
 
     def px2table(self, x, y):
         return y // self.cell_size, x // self.cell_size
@@ -139,10 +141,10 @@ class GridWidget(QtWidgets.QWidget):
 
     def change_array(self, array):
         self.array = array
+        self.update_size()
         self.update_array()
 
     def update_array(self):
-        self.update_size()
         self.update()
 
     def update_size(self):
@@ -180,7 +182,6 @@ class GridEditWidget(GridWidget):
         self.paths = None
         self.dirs = None
         self.last_mouse = None
-        self.setMouseTracking(True)
         self.changed = False
         self.change_array(array)
         gui.palette.setHidden(False)
@@ -239,12 +240,12 @@ class GridEditWidget(GridWidget):
         self.array = array
         indices = list(np.where(array > 1))
         self.starts = set(zip(list(indices[0]), list(indices[1])))
+        self.update_size()
         self.update_array()
         self.gui.status.set_size(*array.shape)
 
     def update_array(self):
         self.make_paths()
-        self.update_size()
         self.update()
 
     def set_changed(self, changed):
@@ -291,12 +292,6 @@ class GridEditWidget(GridWidget):
         self.paths = paths
         self.dirs = dirs
 
-    def update_size(self):
-        size = self.table2px(*self.array.shape)
-        self.setMinimumSize(*size)
-        self.setMaximumSize(*size)
-        self.resize(*size)
-
     def save_to_file(self, filename):
         self.set_changed(False)
         np.savetxt(filename, self.array, fmt='%d')
@@ -305,18 +300,29 @@ class GridEditWidget(GridWidget):
         array = np.loadtxt(filename, dtype=np.int8)
         self.change_array(array)
 
-    def add_observer(self, observer):
-        self.observers.append(observer)
-
 
 class GridGameWidget(GridWidget):
 
     def __init__(self, array, gui):
         super().__init__(array, gui)
+        self.update_array()
+        self._setup_actors()
         gui.palette.setHidden(True)
         gui.scoreboard.setHidden(False)
         gui.scoreboard.display(0)
         self.backup_array = np.copy(array)
+        # TODO: start game (async actors)
+
+    def _setup_actors(self):
+        indices = list(np.where(self.array > 1))
+        starts = set(zip(list(indices[0]), list(indices[1])))
+        self.actors = []
+        if len(starts) == 0:
+            raise ValueError('No dudes in the maze.')
+        for p in starts:
+            if self.directions[p[0], p[1]] == b' ':
+                raise ValueError('Some dude(s) cannot reach goal.')
+            self.actors.append(Actor(self, *p, self.array[p[0], p[1]]))
 
     def paint_cell(self, row, col, painter, rect):
         self.gui.elements[0].svg.render(painter, rect)
@@ -330,36 +336,32 @@ class GridGameWidget(GridWidget):
             if self.array[row, col] == -1:
                 self.array[row, col] = 0
                 self.update_array()
+                # TODO: cant put wall if will cut the goal
             elif self.array[row, col] == 0:
                 self.array[row, col] = -1
                 self.update_array()
 
     def mouseMoveEvent(self, event):
-        event.accept()
         point = self.px2table(event.x(), event.y())
         self.gui.status.set_position(*point)
+        event.accept()
 
     def mouseReleaseEvent(self, event):
         event.accept()
 
-    def change_array(self, array):
-        pass # TODO: switch back to edit mode
+    def update_actor(self, actor):
+        # TODO: update actor position
+        # TODO: check if game over
+        pass
 
     def update_array(self):
+        self.directions = analyze(self.array).directions
         self.update_size()
         self.update()
 
-    def set_changed(self, changed):
+    def finalize(self):
+        # TODO: tell actors to cancel task
         pass
-
-    def save_to_file(self, filename):
-        pass # TODO: switch back to edit mode
-
-    def load_from_file(self, filename):
-        pass # TODO: switch back to edit mode
-
-    def add_observer(self, observer):
-        self.observers.append(observer)
 
 class MazeMainWindow(QtWidgets.QMainWindow):
 
@@ -577,16 +579,24 @@ class MazeGUI:
 
     def switch_mode(self):
         if self.game:
+            self.grid.finalize()
             self.grid = GridEditWidget(self.grid.backup_array, self)
             self.game = False
+            self.scroll_area.setWidget(self.grid)
+            self.grid.add_observer(self)
+            self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
+            self.status.set_mode(self.game)
         else:
-            # TODO: Check if able to switch to game mode
-            self.grid = GridGameWidget(self.grid.array, self)
-            self.game = True
-        self.scroll_area.setWidget(self.grid)
-        self.grid.add_observer(self)
-        self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
-        self.status.set_mode(self.game)
+            try:
+                self.grid = GridGameWidget(self.grid.array, self)
+                self.game = True
+                self.scroll_area.setWidget(self.grid)
+                self.grid.add_observer(self)
+                self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
+                self.status.set_mode(self.game)
+            except ValueError as e:
+                err = QtWidgets.QErrorMessage(self.window)
+                err.showMessage("Cannot enter game mode: {}".format(e))
 
 
 def main():
