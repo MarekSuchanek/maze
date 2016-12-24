@@ -1,5 +1,6 @@
 from PyQt5 import QtWidgets, QtGui, QtCore, QtSvg, uic
 import numpy as np
+import math
 import asyncio
 import os
 import json
@@ -305,6 +306,7 @@ class GridEditWidget(GridWidget):
 
 
 class GridGameWidget(GridWidget):
+    # TODO: scoring
 
     def __init__(self, array, gui):
         super().__init__(array, gui)
@@ -326,6 +328,7 @@ class GridGameWidget(GridWidget):
             row, col = p
             if self.analysis.directions[row, col] == b' ':
                 raise ValueError('Some dude(s) cannot reach goal.')
+            # TODO: different actors (types)
             self.actors.append(Actor(self, row, col, self.array[row, col]))
             self.array[row, col] = 0
 
@@ -356,12 +359,27 @@ class GridGameWidget(GridWidget):
                 self.array[row, col] = 0
                 self.analysis = analyze(self.array)
                 self.update(*self.table2px(row, col), self.cell_size, self.cell_size)
-            elif self.array[row, col] == 0:
-                # TODO: cant put wall if will cut the goal
-                # TODO: cant put wall on actor cell (leaving or entering cell)
+            elif self.array[row, col] == 0 and not self.actor_there(row, col):
                 self.array[row, col] = -1
+                backup_analysis = self.analysis
                 self.analysis = analyze(self.array)
+                if not self.actors_reachable(): # rollback
+                    self.array[row, col] = 0
+                    self.analysis = backup_analysis
                 self.update(*self.table2px(row, col), self.cell_size, self.cell_size)
+
+    def actor_there(self, row, col):
+        for a in self.actors:
+            if math.floor(a.row) <= row <= math.ceil(a.row) and \
+               math.floor(a.column) <= col <= math.ceil(a.column):
+                return True
+        return False
+
+    def actors_reachable(self):
+        for a in self.actors:
+            if self.analysis.directions[int(a.row), int(a.column)] == b' ':
+                return False
+        return True
 
     def mouseMoveEvent(self, event):
         point = self.px2table(event.x(), event.y())
@@ -372,7 +390,7 @@ class GridGameWidget(GridWidget):
         event.accept()
 
     def update_actor(self, actor):
-        # TODO: check if game over
+        # TODO: check if game over & handle
         self.update(
             *self.table2px(int(actor.row)-1, int(actor.column)-1),
             3*self.cell_size, 3*self.cell_size
