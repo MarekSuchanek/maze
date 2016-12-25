@@ -45,6 +45,7 @@ class MazeGUIStatus:
     ZOOM_MASK = "Zoom: {}%  "
     DRAG_MASK = "Dragging: {}  "
     UNSAVED_TXT = "UNSAVED  "
+    SCORE_MASK = "Score: {0:.2f}  "
 
     def __init__(self, statusbar):
         self.statusbar = statusbar
@@ -66,6 +67,9 @@ class MazeGUIStatus:
         self.dragging = QtWidgets.QLabel(statusbar)
         self.set_dragging("")
         statusbar.addWidget(self.dragging)
+        self.score = QtWidgets.QLabel(statusbar)
+        self.set_score(False)
+        statusbar.addWidget(self.score)
 
     def set_mode(self, game):
         self.mode.setText(self.MODE_MASK.format('GAME' if game else 'EDIT'))
@@ -83,10 +87,10 @@ class MazeGUIStatus:
         self.unsaved.setText(self.UNSAVED_TXT if unsaved else '')
 
     def set_dragging(self, name):
-        if name == "":
-            self.dragging.setText("")
-        else:
-            self.dragging.setText(self.DRAG_MASK.format(name))
+        self.dragging.setText('' if name == '' else self.DRAG_MASK.format(name))
+
+    def set_score(self, show, score=0.0):
+        self.score.setText(self.SCORE_MASK.format(score) if show else '')
 
 
 class GridWidget(QtWidgets.QWidget):
@@ -99,6 +103,7 @@ class GridWidget(QtWidgets.QWidget):
         self.min_cell_size = int(gui.config['min_cell_size'])
         self.array = array
         self.observers = []
+        self.game_over = False
         self.setMouseTracking(True)
 
     def px2table(self, x, y):
@@ -188,8 +193,8 @@ class GridEditWidget(GridWidget):
         self.last_mouse = None
         self.changed = False
         self.change_array(array)
+        gui.status.set_score(False)
         gui.palette.setHidden(False)
-        gui.scoreboard.setHidden(True)
 
     def paint_cell(self, row, col, painter, rect):
         self.gui.elements[0].svg.render(painter, rect)
@@ -305,17 +310,27 @@ class GridEditWidget(GridWidget):
         self.change_array(array)
 
 
+class Scorer:
+    def __init__(self, step=0.01):
+        self.step = step
+        self.score = 0
+        self.task = asyncio.ensure_future(self.tick())
+
+    async def tick(self):
+        while True:
+            await asyncio.sleep(self.step)
+            self.score += self.step
+
+
 class GridGameWidget(GridWidget):
-    # TODO: scoring
 
     def __init__(self, array, gui):
         super().__init__(array, gui)
         self.backup_array = np.copy(array)
         self.analysis = analyze(self.array)
         self._setup_actors()
+        self.scorer = Scorer()
         gui.palette.setHidden(True)
-        gui.scoreboard.setHidden(False)
-        gui.scoreboard.display(0)
         self.update()
 
     def _setup_actors(self):
@@ -390,15 +405,28 @@ class GridGameWidget(GridWidget):
         event.accept()
 
     def update_actor(self, actor):
-        # TODO: check if game over & handle
+        self.gui.status.set_score(True, self.scorer.score)
+        if not self.game_over and actor.in_goal:
+            self.game_over = True
+            # TODO: pause/stop all actors and scorer
+            self.gui.game_finished(self.scorer.score, actor)
         self.update(
             *self.table2px(int(actor.row)-1, int(actor.column)-1),
             3*self.cell_size, 3*self.cell_size
         )
 
     def finalize(self):
+        self.scorer.task.cancel()
         for a in self.actors:
             a.task.cancel()
+
+    def run_until_complete(self):
+        self.gui.loop.run_until_complete(
+            asyncio.gather(*[a.task for a in self.actors])
+        )
+        self.gui.loop.run_until_complete(
+            asyncio.gather(self.scorer.task)
+        )
 
 
 class MazeMainWindow(QtWidgets.QMainWindow):
@@ -427,7 +455,6 @@ class MazeGUI:
             uic.loadUi(f, self.window)
         statusbar = self.window.findChild(QtWidgets.QStatusBar, 'statusbar')
         self.status = MazeGUIStatus(statusbar)
-        self.scoreboard = self._find(QtWidgets.QLCDNumber, 'gameScore')
         self.palette = self._find(QtWidgets.QListWidget, 'palette')
         self._setup_grid()
         self._setup_palette()
@@ -498,9 +525,11 @@ class MazeGUI:
 
     def run(self):
         self.window.show()
-        loop = QEventLoop(self.app)
-        asyncio.set_event_loop(loop)
-        loop.run_forever()
+        self.loop = QEventLoop(self.app)
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
+        if self.game:
+            self.grid.run_until_complete()
 
     def file_open(self):
         if self.game:
@@ -620,22 +649,40 @@ class MazeGUI:
             self.grid.finalize()
             self.grid = GridEditWidget(self.grid.backup_array, self)
             self.game = False
-            self.scroll_area.setWidget(self.grid)
-            self.grid.add_observer(self)
-            self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
-            self.status.set_mode(self.game)
             self.palette.setCurrentRow(1)
         else:
             try:
                 self.grid = GridGameWidget(self.grid.array, self)
                 self.game = True
-                self.scroll_area.setWidget(self.grid)
-                self.grid.add_observer(self)
-                self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
-                self.status.set_mode(self.game)
             except ValueError as e:
                 err = QtWidgets.QErrorMessage(self.window)
                 err.showMessage("Cannot enter game mode: {}".format(e))
+        self.scroll_area.setWidget(self.grid)
+        self.grid.add_observer(self)
+        self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
+        self.status.set_mode(self.game)
+
+    def game_finished(self, score, actor):
+        dialog = QtWidgets.QDialog(self.window)
+        with open(filepath('static/ui/gameover.ui')) as f:
+            uic.loadUi(f, dialog)
+        dialog.findChild(QtWidgets.QLCDNumber, 'scoreboard').display(score)
+        dialog.findChild(QtWidgets.QLabel, 'actor').setPixmap(
+            QtGui.QPixmap(self.elements[actor.kind].img_path)
+        )
+        btns = dialog.findChild(QtWidgets.QDialogButtonBox, 'buttons')
+
+        def btns_click(clicked_btn):
+            if clicked_btn == btns.button(QtWidgets.QDialogButtonBox.Ok):
+                self.switch_mode()
+            elif clicked_btn == btns.button(QtWidgets.QDialogButtonBox.Retry):
+                self.switch_mode()
+                self.switch_mode()
+            dialog.accept()
+
+        btns.clicked.connect(btns_click)
+        dialog.exec()
+        # TODO: error caused by asyncio (actors & scorer runs longer than they should)
 
 
 def main():

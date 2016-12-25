@@ -39,6 +39,7 @@ class Actor:
         self.kind = kind
         self.grid = grid
         self.task = asyncio.ensure_future(self.behavior())
+        self.in_goal = False
 
     async def behavior(self):
         """Coroutine containing the actor's behavior
@@ -55,6 +56,8 @@ class Actor:
                 direction = self.grid.analysis.directions[row, column]
             else:
                 direction = b'?'
+
+            self.in_goal = direction == b'X'
 
             if direction == b'v':
                 await self.step(1, 0)
@@ -92,9 +95,15 @@ class Actor:
         Wrapping any coordinate updates in this context wil ensure the actor
         is drawn correctly.
         """
-        self.grid.update_actor(self)
+        self._update_self_on_grid()
         yield
-        self.grid.update_actor(self)
+        self._update_self_on_grid()
+
+    def _update_self_on_grid(self):
+        try:
+            self.grid.update_actor(self)
+        except RuntimeError:
+            pass  # Grid has been already deleted by Qt (task wasn't canceled in time)
 
     async def step(self, dr, dc, duration=1):
         """Coroutine for a step in a given direction
