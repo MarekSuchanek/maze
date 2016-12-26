@@ -4,7 +4,6 @@ import time
 import random
 
 random.seed(time.monotonic())
-# TODO: move description of actors to README
 
 
 class Actor:
@@ -181,31 +180,19 @@ class ActorWithSpeed(Actor):
                 await self.jump()
 
 
-# Rychlík
-# Rychlík má stabilně o 75 % vyšší rychlost než základní aktor.
-#
-# Speedy
-# Speedy is constantly 75% faster than basic actor.
+# Speedy (75% faster actor)
 class SpeedyActor(ActorWithSpeed):
     def __init__(self, grid, row, column, kind):
         super().__init__(grid, row, column, kind)
         self.speed_factor = 0.25
 
 
-# Zrychlovač
-# Zrychlovač může po každém kroku s určitou pravděpodobností trvale
-# zvýšit svou rychlost. Čím déle chodí, tím rychlejší může být. Pravděpodobnost
-# nastavte tak, aby hra byla hratelná; zrychlení tak, aby bylo znatelné (např. o
-# čtvrt políčka za sekundu). Doporučujeme nastavit i rychlostní strop, případně
-# zrychlovat stále o menší a menší hodnotu.
-#
-# Accelerator
-# Accelerator can speed-up (with probability p) to increase his speed. Maximal
-# speed is four times faster than basic actor.
+
+# Accelerator (can accelerate, up to 80% faster)
 class AcceleratorActor(ActorWithSpeed):
     MIN_SPEED_FACTOR = 0.2
-    ACCELERATE_PROB = 0.25
-    ACCELERATE_STEP = 0.1
+    ACCELERATE_PROB = 0.1
+    ACCELERATE_STEP = 0.2
 
     def speed_for_step(self):
         if self.MIN_SPEED_FACTOR < self.speed_factor and \
@@ -214,16 +201,7 @@ class AcceleratorActor(ActorWithSpeed):
         return self.speed_factor * self.default_speed
 
 
-# Skokan*
-# Pokud je za jedním políčkem zdi průchozí políčko, odkud je cesta do cíle alespoň
-# o 5 políček kratší, než z místa, kde se Skokan nachází, Skokan touto zdí projde
-# (přeskočí ji). Kvůli hratelnosti doporučujeme nastavit limity na to, jak často se
-# toto může dít, případně zakázat projít zdí přímo na cíl apod.
-#
-# Jumper
-# Jumper will jump over the wall if cell behind is accessible and closer to some
-# goal at least by 5 steps and more than 5 steps from goal. Jumper must walk at
-# least 10 steps before jumping.
+# Jumper (jumping over wall)
 class JumperActor(Actor):
     JUMP_PROB = 1.0
     STEPS_TO_JUMP = 0
@@ -307,16 +285,7 @@ class JumperActor(Actor):
             self.column = start_col + dc
 
 
-# Teleportér*
-# Teleportér se místo kroku může s určitou pravděpodobností teleportovat na náhodné
-# průchozí a dostupné místo bludiště. Při teleportu se postavička na malou chvíli rozechvěje,
-# pak se přemístí a po chvilce se přestane chvět. Celá akce by měla trvat méně než sekundu.
-# Doporučujeme zakázat teleport na políčka příliš blízko cíli.
-#
-# Teleporter*
-# Teleporter can (with probability p) teleport to random accessible place in grid.
-# During the teleportation process the actor shivers a lot. Destination must be more than
-# 5 steps from goal.
+# Teleporter (tp to random place)
 class TeleporterActor(Actor):
     TELEPORT_PROB = 0.2
     MIN_DIST_GOAL = 5
@@ -388,13 +357,7 @@ class TeleporterActor(Actor):
                ((int(self.row) - row)**2 + (int(self.column) - col)**2) > self.MIN_DIST_GOAL**2
 
 
-# Zmatkář
-# Zmatkář s určitou pravděpodobností místo kroku směrem k cíli provede krok náhodným průchozím
-# směrem (pokud to je možné, tak jiným, než ze kterého přišel).
-#
-# Scatterbrain
-# Scatterbrain can (with probability p) lost his mind and go to random direction (if possible,
-# no turning back).
+# Scatterbrain (can messup direction)
 class ScatterbrainActor(Actor):
     MESS_UP_PROB = 0.25
     DIRS_VECTORS = [(1, 0), (0, 1), (-1, 0), (0, -1)]

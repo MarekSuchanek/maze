@@ -21,17 +21,17 @@
     "actor": "speedy"
   },
   "3": {
-    "name": "Accelerator",
+    "name": "Accel'e'rator",
     "img": "static/pics/dude2.svg",
     "actor": "accelerator"
   },
   "4": {
-    "name": "Jumper",
+    "name": "Le Parkour",
     "img": "static/pics/dude3.svg",
     "actor": "jumper"
   },
   "5": {
-    "name": "Teleporter",
+    "name": "Tele del Porto",
     "img": "static/pics/dude4.svg",
     "actor": "teleporter"
   },
