@@ -16,23 +16,28 @@
     "img": "static/pics/castle.svg"
   },
   "2": {
-    "name": "Light dude",
-    "img": "static/pics/dude1.svg"
+    "name": "Speedy",
+    "img": "static/pics/dude1.svg",
+    "actor": "speedy"
   },
   "3": {
-    "name": "Yellow dude",
-    "img": "static/pics/dude2.svg"
+    "name": "Accelerator",
+    "img": "static/pics/dude2.svg",
+    "actor": "accelerator"
   },
   "4": {
-    "name": "Pink dude",
-    "img": "static/pics/dude3.svg"
+    "name": "Jumper",
+    "img": "static/pics/dude3.svg",
+    "actor": "jumper"
   },
   "5": {
-    "name": "Blue dude",
-    "img": "static/pics/dude4.svg"
+    "name": "Teleporter",
+    "img": "static/pics/dude4.svg",
+    "actor": "teleporter"
   },
   "6": {
-    "name": "Green dude",
-    "img": "static/pics/dude5.svg"
+    "name": "Scatterbrain",
+    "img": "static/pics/dude5.svg",
+    "actor": "scatterbrain"
   }
 }

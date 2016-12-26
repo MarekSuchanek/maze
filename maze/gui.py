@@ -9,7 +9,7 @@ from collections import OrderedDict
 from bresenham import bresenham
 from quamash import QEventLoop
 from .analysis import analyze, NoPathExistsException
-from .actors import Actor
+from .actors import actor_types
 
 
 VALUE_ROLE = QtCore.Qt.UserRole
@@ -33,9 +33,10 @@ class MazeElement:
     def __init__(self, values, key):
         self.name = values['name']
         self.img_path = filepath(values['img'])
-        self.value = key
+        self.value = int(key)
         self.svg = QtSvg.QSvgRenderer(self.img_path)
         self.icon = QtGui.QIcon(self.img_path)
+        self.actor = values.get('actor', 'basic') if self.value > 1 else None
 
 
 class MazeGUIStatus:
@@ -323,6 +324,7 @@ class Scorer:
 
 
 class GridGameWidget(GridWidget):
+    # TODO: describe in README
 
     def __init__(self, array, gui):
         super().__init__(array, gui)
@@ -343,8 +345,13 @@ class GridGameWidget(GridWidget):
             row, col = p
             if self.analysis.directions[row, col] == b' ':
                 raise ValueError('Some dude(s) cannot reach goal.')
-            # TODO: different actors (types)
-            self.actors.append(Actor(self, row, col, self.array[row, col]))
+            kind = self.array[row, col]
+            if self.gui.elements[kind].actor not in actor_types:
+                raise ValueError('Unknown dude type requested: "{}".'.format(
+                    self.gui.elements[kind].actor)
+                )
+            actor_type = actor_types[self.gui.elements[kind].actor]
+            self.actors.append(actor_type(self, row, col, kind))
             self.array[row, col] = 0
 
     def paintEvent(self, event):
