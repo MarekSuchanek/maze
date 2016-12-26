@@ -230,7 +230,7 @@ class JumperActor(Actor):
     MIN_DIST_GOAL = 5
     JUMP_DURATION = 1
     D2 = [(-2, 0), (2, 0), (0, 2), (0, -2)]
-    D1 = [(-2, 0), (1, 0), (0, 1), (0, -1)]
+    D1 = [(-1, 0), (1, 0), (0, 1), (0, -1)]
 
     def __init__(self, grid, row, column, kind):
         super().__init__(grid, row, column, kind)

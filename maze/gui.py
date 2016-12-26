@@ -333,6 +333,7 @@ class GridGameWidget(GridWidget):
         self._setup_actors()
         self.scorer = Scorer()
         gui.palette.setHidden(True)
+        self.update_size()
         self.update()
 
     def _setup_actors(self):
