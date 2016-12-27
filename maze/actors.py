@@ -41,6 +41,7 @@ class Actor:
         self.column = column
         self.kind = kind
         self.grid = grid
+        self.score = 0
         self.task = asyncio.ensure_future(self.behavior())
         self.in_goal = False
 
@@ -51,7 +52,7 @@ class Actor:
         or on the goal), the actor jumps repeatedly.
         To be reimplemented in subclasses..
         """
-        while True:
+        while not self.grid.game_over:
             shape = self.grid.analysis.directions.shape
             row = int(self.row)
             column = int(self.column)
@@ -83,9 +84,11 @@ class Actor:
         When using this with a for-loop, you probably need to put
         a sleep/delay into each iteration.
         """
-        start = time.monotonic()
+        last = start = time.monotonic()
         while True:
             now = time.monotonic()
+            self.score += (now - last)
+            last = now
             p = (now - start) / duration
             if p > 1:
                 return
@@ -158,7 +161,7 @@ class ActorWithSpeed(Actor):
         return self.speed_factor * self.default_speed
 
     async def behavior(self):
-        while True:
+        while not self.grid.game_over:
             row = int(self.row)
             column = int(self.column)
             if self.grid.inside_array(row, column):
@@ -185,7 +188,6 @@ class SpeedyActor(ActorWithSpeed):
     def __init__(self, grid, row, column, kind):
         super().__init__(grid, row, column, kind)
         self.speed_factor = 0.25
-
 
 
 # Accelerator (can accelerate, up to 80% faster)
@@ -215,7 +217,7 @@ class JumperActor(Actor):
         self.steps_without_jump = 0
 
     async def behavior(self):
-        while True:
+        while not self.grid.game_over:
             self.steps_without_jump += 1
             row = int(self.row)
             column = int(self.column)
@@ -293,7 +295,7 @@ class TeleporterActor(Actor):
     SHIVER_DURATION = 0.5
 
     async def behavior(self):
-        while True:
+        while not self.grid.game_over:
             row = int(self.row)
             column = int(self.column)
             if self.grid.inside_array(row, column):
@@ -384,7 +386,7 @@ class ScatterbrainActor(Actor):
             return random.choice(possible_dirs)
 
     async def behavior(self):
-        while True:
+        while not self.grid.game_over:
             row = int(self.row)
             column = int(self.column)
             if self.grid.inside_array(row, column):

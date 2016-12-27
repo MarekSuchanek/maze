@@ -322,18 +322,6 @@ class GridEditWidget(GridWidget):
         self.change_array(array)
 
 
-class Scorer:
-    def __init__(self, step=0.01):
-        self.step = step
-        self.score = 0
-        self.task = asyncio.ensure_future(self.tick())
-
-    async def tick(self):
-        while True:
-            await asyncio.sleep(self.step)
-            self.score += self.step
-
-
 class GridGameWidget(GridWidget):
 
     def __init__(self, array, gui):
@@ -341,7 +329,6 @@ class GridGameWidget(GridWidget):
         self.backup_array = np.copy(array)
         self.analysis = analyze(self.array)
         self._setup_actors()
-        self.scorer = Scorer()
         gui.palette.setHidden(True)
         self.update_size()
         self.update()
@@ -423,27 +410,31 @@ class GridGameWidget(GridWidget):
         event.accept()
 
     def update_actor(self, actor):
-        self.gui.status.set_score(True, self.scorer.score)
+        self.update_score()
         if not self.game_over and actor.in_goal:
             self.game_over = True
-            # TODO: pause/stop all actors and scorer
-            self.gui.game_finished(self.scorer.score, actor)
+            self.gui.game_finished(actor)
         self.update(
             *self.table2px(int(actor.row)-1, int(actor.column)-1),
             3*self.cell_size, 3*self.cell_size
         )
 
+    def update_score(self):
+        if self.game_over:
+            return
+        best = 0
+        for a in self.actors:
+            if a.score > best:
+                best = a.score
+        self.gui.status.set_score(True, best)
+
     def finalize(self):
-        self.scorer.task.cancel()
         for a in self.actors:
             a.task.cancel()
 
     def run_until_complete(self):
         self.gui.loop.run_until_complete(
             asyncio.gather(*[a.task for a in self.actors])
-        )
-        self.gui.loop.run_until_complete(
-            asyncio.gather(self.scorer.task)
         )
 
 
@@ -673,27 +664,32 @@ class MazeGUI:
         self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
         self.status.set_mode(self.game)
 
-    def game_finished(self, score, actor):
+    def game_finished(self, actor):
         dialog = QtWidgets.QDialog(self.window)
         with open(filepath('static/ui/gameover.ui')) as f:
             uic.loadUi(f, dialog)
-        dialog.findChild(QtWidgets.QLCDNumber, 'scoreboard').display(score)
+        dialog.findChild(QtWidgets.QLCDNumber, 'scoreboard').display(actor.score)
         dialog.findChild(QtWidgets.QLabel, 'actor').setPixmap(
             QtGui.QPixmap(self.elements[actor.kind].img_path)
         )
         btns = dialog.findChild(QtWidgets.QDialogButtonBox, 'buttons')
 
         def btns_click(clicked_btn):
-            if clicked_btn == btns.button(QtWidgets.QDialogButtonBox.Ok):
+            if clicked_btn == btns.button(QtWidgets.QDialogButtonBox.Retry):
                 self.switch_mode()
-            elif clicked_btn == btns.button(QtWidgets.QDialogButtonBox.Retry):
-                self.switch_mode()
-                self.switch_mode()
+            self.switch_mode()
             dialog.accept()
 
         btns.clicked.connect(btns_click)
-        dialog.exec()
-        # TODO: error caused by asyncio (actors & scorer runs longer than they should)
+        dialog_async_exec(dialog)
+
+
+# https://github.com/harvimt/quamash/issues/41
+def dialog_async_exec(dialog):
+    future = asyncio.Future()
+    dialog.finished.connect(lambda r: future.set_result(r))
+    dialog.open()
+    return future
 
 
 def main():
