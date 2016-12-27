@@ -107,7 +107,8 @@ class Actor:
 
     def _update_self_on_grid(self):
         try:
-            self.grid.update_actor(self)
+            if not self.grid.game_over: #  no more updated when game over
+                self.grid.update_actor(self)
         except RuntimeError:
             pass  # Grid has been already deleted by Qt (task wasn't canceled in time)
 
