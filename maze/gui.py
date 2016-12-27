@@ -194,8 +194,19 @@ class GridEditWidget(GridWidget):
         self.last_mouse = None
         self.changed = False
         self.change_array(array)
+        self._setup_pallete()
         gui.status.set_score(False)
-        gui.palette.setHidden(False)
+
+    def _setup_pallete(self):
+        self.selected = 1
+
+        def item_activated():
+            for item in self.gui.palette.selectedItems():
+                self.selected = int(item.data(VALUE_ROLE))
+
+        self.gui.palette.itemSelectionChanged.connect(item_activated)
+        self.gui.palette.setCurrentRow(1)
+        self.gui.palette.setHidden(False)
 
     def paint_cell(self, row, col, painter, rect):
         self.gui.elements[0].svg.render(painter, rect)
@@ -324,7 +335,6 @@ class Scorer:
 
 
 class GridGameWidget(GridWidget):
-    # TODO: describe in README
 
     def __init__(self, array, gui):
         super().__init__(array, gui)
@@ -499,17 +509,11 @@ class MazeGUI:
         self.window.setWindowTitle(self.window.windowTitle() + ' *')
 
     def _setup_palette(self):
-        def item_activated():
-            for item in self.palette.selectedItems():
-                self.grid.selected = int(item.data(VALUE_ROLE))
-
         for e in self.elements.values():
             item = QtWidgets.QListWidgetItem(e.name)
             item.setIcon(e.icon)
             item.setData(VALUE_ROLE, e.value)
             self.palette.addItem(item)
-        self.palette.itemSelectionChanged.connect(item_activated)
-        self.palette.setCurrentRow(1)
 
     def _setup_actions(self):
         action = self.window.findChild(QtWidgets.QAction, 'actionNew')
@@ -657,7 +661,6 @@ class MazeGUI:
             self.grid.finalize()
             self.grid = GridEditWidget(self.grid.backup_array, self)
             self.game = False
-            self.palette.setCurrentRow(1)
         else:
             try:
                 self.grid = GridGameWidget(self.grid.array, self)
