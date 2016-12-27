@@ -29,22 +29,26 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>596</width>
-         <height>488</height>
+         <width>589</width>
+         <height>485</height>
         </rect>
        </property>
       </widget>
      </widget>
     </item>
     <item>
-     <widget class="QListWidget" name="palette">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <item>
+       <widget class="QListWidget" name="palette">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
@@ -54,7 +58,7 @@
      <x>0</x>
      <y>0</y>
      <width>883</width>
-     <height>27</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuMap">
@@ -84,8 +88,15 @@
     <addaction name="separator"/>
     <addaction name="actionZoomReset"/>
    </widget>
+   <widget class="QMenu" name="menuGame">
+    <property name="title">
+     <string>Game</string>
+    </property>
+    <addaction name="actionGameMode"/>
+   </widget>
    <addaction name="menuMap"/>
    <addaction name="menuZoom"/>
+   <addaction name="menuGame"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar">
@@ -107,7 +118,8 @@
   </action>
   <action name="actionQuit">
    <property name="icon">
-    <iconset theme="application-exit"/>
+    <iconset theme="application-exit">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Quit</string>
@@ -198,6 +210,20 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+0</string>
+   </property>
+  </action>
+  <action name="actionGameMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Game mode</string>
+   </property>
+   <property name="toolTip">
+    <string>Game mode</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Space</string>
    </property>
   </action>
  </widget>

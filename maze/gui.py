@@ -1,11 +1,15 @@
 from PyQt5 import QtWidgets, QtGui, QtCore, QtSvg, uic
 import numpy as np
+import math
+import asyncio
 import os
 import json
 import configparser
 from collections import OrderedDict
 from bresenham import bresenham
+from quamash import QEventLoop
 from .analysis import analyze, NoPathExistsException
+from .actors import actor_types
 
 
 VALUE_ROLE = QtCore.Qt.UserRole
@@ -29,20 +33,26 @@ class MazeElement:
     def __init__(self, values, key):
         self.name = values['name']
         self.img_path = filepath(values['img'])
-        self.value = key
+        self.value = int(key)
         self.svg = QtSvg.QSvgRenderer(self.img_path)
         self.icon = QtGui.QIcon(self.img_path)
+        self.actor = values.get('actor', 'basic') if self.value > 1 else None
 
 
 class MazeGUIStatus:
+    MODE_MASK = " {} |  "
     POS_MASK = "Position: {}, {}  "
     SIZE_MASK = "Size: {}×{}  "
     ZOOM_MASK = "Zoom: {}%  "
     DRAG_MASK = "Dragging: {}  "
     UNSAVED_TXT = "UNSAVED  "
+    SCORE_MASK = "Score: {0:.2f}  "
 
     def __init__(self, statusbar):
         self.statusbar = statusbar
+        self.mode = QtWidgets.QLabel(statusbar)
+        self.set_mode(False)
+        statusbar.addWidget(self.mode)
         self.position = QtWidgets.QLabel(statusbar)
         self.set_position(0, 0)
         statusbar.addWidget(self.position)
@@ -58,6 +68,12 @@ class MazeGUIStatus:
         self.dragging = QtWidgets.QLabel(statusbar)
         self.set_dragging("")
         statusbar.addWidget(self.dragging)
+        self.score = QtWidgets.QLabel(statusbar)
+        self.set_score(False)
+        statusbar.addWidget(self.score)
+
+    def set_mode(self, game):
+        self.mode.setText(self.MODE_MASK.format('GAME' if game else 'EDIT'))
 
     def set_position(self, row, col):
         self.position.setText(self.POS_MASK.format(row+1, col+1))
@@ -72,31 +88,24 @@ class MazeGUIStatus:
         self.unsaved.setText(self.UNSAVED_TXT if unsaved else '')
 
     def set_dragging(self, name):
-        if name == "":
-            self.dragging.setText("")
-        else:
-            self.dragging.setText(self.DRAG_MASK.format(name))
+        self.dragging.setText('' if name == '' else self.DRAG_MASK.format(name))
+
+    def set_score(self, show, score=0.0):
+        self.score.setText(self.SCORE_MASK.format(score) if show else '')
 
 
 class GridWidget(QtWidgets.QWidget):
 
-    def __init__(self, array, status, elements, config):
+    def __init__(self, array, gui):
         super().__init__()
-        self.status = status
-        self.config = config
-        self.cell_size = int(config['cell_size'])
-        self.init_size = int(config['cell_size'])
-        self.min_cell_size = int(config['min_cell_size'])
-        self.array = None
-        self.starts = None
-        self.paths = None
-        self.dirs = None
-        self.last_mouse = None
+        self.gui = gui
+        self.cell_size = int(gui.config['cell_size'])
+        self.init_size = int(gui.config['cell_size'])
+        self.min_cell_size = int(gui.config['min_cell_size'])
+        self.array = array
         self.observers = []
-        self.change_array(array)
-        self.elements = elements
+        self.game_over = False
         self.setMouseTracking(True)
-        self.changed = False
 
     def px2table(self, x, y):
         return y // self.cell_size, x // self.cell_size
@@ -106,54 +115,26 @@ class GridWidget(QtWidgets.QWidget):
 
     def paintEvent(self, event):
         rect = event.rect()
+        painter = QtGui.QPainter(self)
+        self.paint_cells(rect, painter)
+
+    def paint_cells(self, rect, painter):
         row_min, col_min = self.px2table(rect.left(), rect.top())
         row_min = max(row_min, 0)
         col_min = max(col_min, 0)
         row_max, col_max = self.px2table(rect.right(), rect.bottom())
         row_max = min(row_max + 1, self.array.shape[0])
         col_max = min(col_max + 1, self.array.shape[1])
-        painter = QtGui.QPainter(self)
         for row in range(row_min, row_max):
             for col in range(col_min, col_max):
                 x, y = self.table2px(row, col)
-                rect = QtCore.QRectF(x, y, self.cell_size, self.cell_size)
+                crect = QtCore.QRectF(x, y, self.cell_size, self.cell_size)
                 white = QtGui.QColor(255, 255, 255)
-                painter.fillRect(rect, QtGui.QBrush(white))
-                self.elements[0].svg.render(painter, rect)
-                if self.paths[row, col] != 0:
-                    SVG_LINES[self.paths[row, col]].render(painter, rect)
-                    if self.array[row, col] == 0:
-                        SVG_ARROWS[self.dirs[row, col]].render(painter, rect)
-                if self.array[row, col] != 0:
-                    self.elements[self.array[row, col]].svg.render(painter, rect)
+                painter.fillRect(crect, QtGui.QBrush(white))
+                self.paint_cell(row, col, painter, crect)
 
-    def mousePressEvent(self, event):
-        step = self.px2table(event.x(), event.y())
-        if self.inside_array(*step):
-            if self.put_on_cell(*step):
-                self.update_array()
-        self.last_mouse = step
-        self.status.set_dragging(self.elements[self.selected].name)
-
-    def mouseMoveEvent(self, event):
-        step = self.px2table(event.x(), event.y())
-        if not self.inside_array(*step):
-            return
-        self.status.set_position(*step)
-        if self.last_mouse is None:
-            return
-        path = list(bresenham(*self.last_mouse, *step))
-        any_change = False
-        for step in path:
-            if self.inside_array(*step):
-                any_change |= self.put_on_cell(*step)
-        if any_change:
-            self.update_array()
-        self.last_mouse = step
-
-    def mouseReleaseEvent(self, event):
-        self.last_mouse = None
-        self.status.set_dragging("")
+    def paint_cell(self, row, col, painter, rect):
+        pass
 
     def wheelEvent(self, event):
         if event.modifiers() != QtCore.Qt.ControlModifier:
@@ -167,6 +148,102 @@ class GridWidget(QtWidgets.QWidget):
     def inside_array(self, row, col):
         return 0 <= row < self.array.shape[0] and \
                0 <= col < self.array.shape[1]
+
+    def change_array(self, array):
+        self.array = array
+        self.update_size()
+        self.update_array()
+
+    def update_array(self):
+        self.update()
+
+    def update_size(self):
+        size = self.table2px(*self.array.shape)
+        self.setMinimumSize(*size)
+        self.setMaximumSize(*size)
+        self.resize(*size)
+
+    def zoom_in(self):
+        self.cell_size += max(int(self.cell_size * 0.1), 1)
+        self.update_size()
+        self.gui.status.set_zoom(100 * self.cell_size // self.init_size)
+
+    def zoom_out(self):
+        if self.cell_size < self.min_cell_size:
+            return
+        self.cell_size -= max(int(self.cell_size * 0.1), 1)
+        self.update_size()
+        self.gui.status.set_zoom(100 * self.cell_size // self.init_size)
+
+    def zoom_reset(self):
+        self.cell_size = self.init_size
+        self.update_size()
+        self.gui.status.set_zoom(100)
+
+    def add_observer(self, observer):
+        self.observers.append(observer)
+
+
+class GridEditWidget(GridWidget):
+
+    def __init__(self, array, gui):
+        super().__init__(array, gui)
+        self.starts = None
+        self.paths = None
+        self.dirs = None
+        self.last_mouse = None
+        self.changed = False
+        self.change_array(array)
+        self._setup_pallete()
+        gui.status.set_score(False)
+
+    def _setup_pallete(self):
+        self.selected = 1
+
+        def item_activated():
+            for item in self.gui.palette.selectedItems():
+                self.selected = int(item.data(VALUE_ROLE))
+
+        self.gui.palette.itemSelectionChanged.connect(item_activated)
+        self.gui.palette.setCurrentRow(1)
+        self.gui.palette.setHidden(False)
+
+    def paint_cell(self, row, col, painter, rect):
+        self.gui.elements[0].svg.render(painter, rect)
+        if self.paths[row, col] != 0:
+            SVG_LINES[self.paths[row, col]].render(painter, rect)
+            if self.array[row, col] == 0:
+                SVG_ARROWS[self.dirs[row, col]].render(painter, rect)
+        if self.array[row, col] != 0:
+            self.gui.elements[self.array[row, col]].svg.render(painter, rect)
+
+    def mousePressEvent(self, event):
+        step = self.px2table(event.x(), event.y())
+        if self.inside_array(*step):
+            if self.put_on_cell(*step):
+                self.update_array()
+        self.last_mouse = step
+        self.gui.status.set_dragging(self.gui.elements[self.selected].name)
+
+    def mouseMoveEvent(self, event):
+        step = self.px2table(event.x(), event.y())
+        if not self.inside_array(*step):
+            return
+        self.gui.status.set_position(*step)
+        if self.last_mouse is None:
+            return
+        path = list(bresenham(*self.last_mouse, *step))
+        any_change = False
+        for step in path:
+            if self.inside_array(*step):
+                any_change |= self.put_on_cell(*step)
+        if any_change:
+            self.update_array()
+        self.last_mouse = step
+
+    def mouseReleaseEvent(self, event):
+        self.last_mouse = None
+        self.gui.status.set_dragging("")
 
     def put_on_cell(self, row, col):
         if self.array[row, col] == self.selected:
@@ -184,17 +261,17 @@ class GridWidget(QtWidgets.QWidget):
         self.array = array
         indices = list(np.where(array > 1))
         self.starts = set(zip(list(indices[0]), list(indices[1])))
+        self.update_size()
         self.update_array()
-        self.status.set_size(*array.shape)
+        self.gui.status.set_size(*array.shape)
 
     def update_array(self):
         self.make_paths()
-        self.update_size()
         self.update()
 
     def set_changed(self, changed):
         self.changed = changed
-        self.status.set_unsaved(changed)
+        self.gui.status.set_unsaved(changed)
         for o in self.observers:
             o.change_notice()
 
@@ -236,29 +313,6 @@ class GridWidget(QtWidgets.QWidget):
         self.paths = paths
         self.dirs = dirs
 
-    def update_size(self):
-        size = self.table2px(*self.array.shape)
-        self.setMinimumSize(*size)
-        self.setMaximumSize(*size)
-        self.resize(*size)
-
-    def zoom_in(self):
-        self.cell_size += max(int(self.cell_size * 0.1), 1)
-        self.update_size()
-        self.status.set_zoom(100 * self.cell_size // self.init_size)
-
-    def zoom_out(self):
-        if self.cell_size < self.min_cell_size:
-            return
-        self.cell_size -= max(int(self.cell_size * 0.1), 1)
-        self.update_size()
-        self.status.set_zoom(100 * self.cell_size // self.init_size)
-
-    def zoom_reset(self):
-        self.cell_size = self.init_size
-        self.update_size()
-        self.status.set_zoom(100)
-
     def save_to_file(self, filename):
         self.set_changed(False)
         np.savetxt(filename, self.array, fmt='%d')
@@ -267,8 +321,121 @@ class GridWidget(QtWidgets.QWidget):
         array = np.loadtxt(filename, dtype=np.int8)
         self.change_array(array)
 
-    def add_observer(self, observer):
-        self.observers.append(observer)
+
+class GridGameWidget(GridWidget):
+
+    def __init__(self, array, gui):
+        super().__init__(array, gui)
+        self.backup_array = np.copy(array)
+        self.analysis = analyze(self.array)
+        self._setup_actors()
+        gui.palette.setHidden(True)
+        self.update_size()
+        self.update()
+
+    def _setup_actors(self):
+        indices = list(np.where(self.array > 1))
+        starts = set(zip(list(indices[0]), list(indices[1])))
+        self.actors = []
+        if len(starts) == 0:
+            raise ValueError('No dudes in the maze.')
+        for p in starts:
+            row, col = p
+            if self.analysis.directions[row, col] == b' ':
+                raise ValueError('Some dude(s) cannot reach goal.')
+            kind = self.array[row, col]
+            if self.gui.elements[kind].actor not in actor_types:
+                raise ValueError('Unknown dude type requested: "{}".'.format(
+                    self.gui.elements[kind].actor)
+                )
+            actor_type = actor_types[self.gui.elements[kind].actor]
+            self.actors.append(actor_type(self, row, col, kind))
+            self.array[row, col] = 0
+
+    def paintEvent(self, event):
+        rect = event.rect()
+        painter = QtGui.QPainter(self)
+        self.paint_cells(rect, painter)
+        self.paint_actors(painter)
+
+    def paint_cell(self, row, col, painter, rect):
+        self.gui.elements[0].svg.render(painter, rect)
+        if self.array[row, col] != 0:
+            self.gui.elements[self.array[row, col]].svg.render(painter, rect)
+
+    def paint_actors(self, painter):
+        for a in self.actors:
+            rect = QtCore.QRectF(
+                *self.table2px(a.row, a.column),
+                self.cell_size, self.cell_size
+            )
+            self.gui.elements[a.kind].svg.render(painter, rect)
+
+    def mousePressEvent(self, event):
+        event.accept()
+        row, col = self.px2table(event.x(), event.y())
+        if self.inside_array(row, col):
+            if self.array[row, col] == -1:
+                self.array[row, col] = 0
+                self.analysis = analyze(self.array)
+                self.update(*self.table2px(row, col), self.cell_size, self.cell_size)
+            elif self.array[row, col] == 0 and not self.actor_there(row, col):
+                self.array[row, col] = -1
+                backup_analysis = self.analysis
+                self.analysis = analyze(self.array)
+                if not self.actors_reachable(): # rollback
+                    self.array[row, col] = 0
+                    self.analysis = backup_analysis
+                self.update(*self.table2px(row, col), self.cell_size, self.cell_size)
+
+    def actor_there(self, row, col):
+        for a in self.actors:
+            if math.floor(a.row) <= row <= math.ceil(a.row) and \
+               math.floor(a.column) <= col <= math.ceil(a.column):
+                return True
+        return False
+
+    def actors_reachable(self):
+        for a in self.actors:
+            if self.analysis.directions[int(a.row), int(a.column)] == b' ':
+                return False
+        return True
+
+    def mouseMoveEvent(self, event):
+        point = self.px2table(event.x(), event.y())
+        self.gui.status.set_position(*point)
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        event.accept()
+
+    def update_actor(self, actor):
+        self.update_score()
+        if not self.game_over and actor.in_goal:
+            self.game_over = True
+            self.gui.game_finished(actor)
+        self.update(
+            *self.table2px(int(actor.row)-1, int(actor.column)-1),
+            3*self.cell_size, 3*self.cell_size
+        )
+
+    def update_score(self):
+        if self.game_over:
+            return
+        best = 0
+        for a in self.actors:
+            if a.score > best:
+                best = a.score
+        self.gui.status.set_score(True, best)
+
+    def finalize(self):
+        for a in self.actors:
+            a.task.cancel()
+
+    def run_until_complete(self):
+        self.gui.loop.run_until_complete(
+            asyncio.gather(*[a.task for a in self.actors])
+        )
 
 
 class MazeMainWindow(QtWidgets.QMainWindow):
@@ -297,6 +464,7 @@ class MazeGUI:
             uic.loadUi(f, self.window)
         statusbar = self.window.findChild(QtWidgets.QStatusBar, 'statusbar')
         self.status = MazeGUIStatus(statusbar)
+        self.palette = self._find(QtWidgets.QListWidget, 'palette')
         self._setup_grid()
         self._setup_palette()
         self._setup_actions()
@@ -319,11 +487,12 @@ class MazeGUI:
             ),
             dtype=np.int8
         )
-        self.grid = GridWidget(new_array, self.status,
-                               self.elements, self.config)
-        scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
-        scroll_area.setWidget(self.grid)
+        self.grid = GridEditWidget(new_array, self)
+        self.game = False
+        self.scroll_area = self._find(QtWidgets.QScrollArea, 'scrollArea')
+        self.scroll_area.setWidget(self.grid)
         self.grid.add_observer(self)
+        self.status.set_mode(self.game)
 
     def change_notice(self):
         if self.window.windowTitle().endswith(' *'):
@@ -331,19 +500,11 @@ class MazeGUI:
         self.window.setWindowTitle(self.window.windowTitle() + ' *')
 
     def _setup_palette(self):
-        self.palette = self._find(QtWidgets.QListWidget, 'palette')
-
-        def item_activated():
-            for item in self.palette.selectedItems():
-                self.grid.selected = int(item.data(VALUE_ROLE))
-
         for e in self.elements.values():
             item = QtWidgets.QListWidgetItem(e.name)
             item.setIcon(e.icon)
             item.setData(VALUE_ROLE, e.value)
             self.palette.addItem(item)
-        self.palette.itemSelectionChanged.connect(item_activated)
-        self.palette.setCurrentRow(1)
 
     def _setup_actions(self):
         action = self.window.findChild(QtWidgets.QAction, 'actionNew')
@@ -362,12 +523,20 @@ class MazeGUI:
         action.triggered.connect(self.grid.zoom_out)
         action = self.window.findChild(QtWidgets.QAction, 'actionZoomReset')
         action.triggered.connect(self.grid.zoom_reset)
+        action = self.window.findChild(QtWidgets.QAction, 'actionGameMode')
+        action.triggered.connect(self.switch_mode)
 
     def run(self):
         self.window.show()
-        return self.app.exec()
+        self.loop = QEventLoop(self.app)
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
+        if self.game:
+            self.grid.run_until_complete()
 
     def file_open(self):
+        if self.game:
+            self.switch_mode()
         if not self.ask_save():
             return  # don't want to open now
         paths = self.file_dialog(False)
@@ -375,17 +544,23 @@ class MazeGUI:
             self.grid_open(paths[0])
 
     def file_save(self):
+        if self.game:
+            self.switch_mode()
         if self.filename is None:
             self.file_save_as()
         else:
             self.grid_save(self.filename)
 
     def file_save_as(self):
+        if self.game:
+            self.switch_mode()
         paths = self.file_dialog(True)
         if len(paths) > 0:
             self.grid_save(paths[0])
 
     def ask_save(self):
+        if self.game:
+            self.switch_mode()
         if not self.grid.changed:
             return True  # no changes, continue
         reply = QtWidgets.QMessageBox.question(
@@ -447,6 +622,8 @@ class MazeGUI:
         return []
 
     def new_dialog(self):
+        if self.game:
+            self.switch_mode()
         if not self.ask_save():
             return  # don't want to new now
         dialog = QtWidgets.QDialog(self.window)
@@ -469,6 +646,50 @@ class MazeGUI:
         with open(filepath('static/ui/help.ui')) as f:
             uic.loadUi(f, dialog)
         dialog.exec()
+
+    def switch_mode(self):
+        if self.game:
+            self.grid.finalize()
+            self.grid = GridEditWidget(self.grid.backup_array, self)
+            self.game = False
+        else:
+            try:
+                self.grid = GridGameWidget(self.grid.array, self)
+                self.game = True
+            except ValueError as e:
+                err = QtWidgets.QErrorMessage(self.window)
+                err.showMessage("Cannot enter game mode: {}".format(e))
+        self.scroll_area.setWidget(self.grid)
+        self.grid.add_observer(self)
+        self.window.findChild(QtWidgets.QAction, 'actionGameMode').setChecked(self.game)
+        self.status.set_mode(self.game)
+
+    def game_finished(self, actor):
+        dialog = QtWidgets.QDialog(self.window)
+        with open(filepath('static/ui/gameover.ui')) as f:
+            uic.loadUi(f, dialog)
+        dialog.findChild(QtWidgets.QLCDNumber, 'scoreboard').display(actor.score)
+        dialog.findChild(QtWidgets.QLabel, 'actor').setPixmap(
+            QtGui.QPixmap(self.elements[actor.kind].img_path)
+        )
+        btns = dialog.findChild(QtWidgets.QDialogButtonBox, 'buttons')
+
+        def btns_click(clicked_btn):
+            if clicked_btn == btns.button(QtWidgets.QDialogButtonBox.Retry):
+                self.switch_mode()
+            self.switch_mode()
+            dialog.accept()
+
+        btns.clicked.connect(btns_click)
+        dialog_async_exec(dialog)
+
+
+# https://github.com/harvimt/quamash/issues/41
+def dialog_async_exec(dialog):
+    future = asyncio.Future()
+    dialog.finished.connect(lambda r: future.set_result(r))
+    dialog.open()
+    return future
 
 
 def main():
