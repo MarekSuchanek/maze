@@ -58,7 +58,7 @@
       </font>
      </property>
      <property name="text">
-      <string>You have failed to protect the castle. Poor princess! Shame on you!</string>
+      <string>You have failed to protect the castle. Poor princess! Shame on you! You need to click faster next time.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -77,7 +77,7 @@
         </font>
        </property>
        <property name="text">
-        <string>Score:</string>
+        <string>Survived:</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignCenter</set>
@@ -86,6 +86,12 @@
      </item>
      <item>
       <widget class="QLCDNumber" name="scoreboard">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="font">
         <font>
          <weight>50</weight>
@@ -109,12 +115,25 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>seconds</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>
     <widget class="QLabel" name="label_2">
      <property name="text">
-      <string>You can return to the edit mode of the maze to make it simpler (or even more challenging), try again or try defend against remaining dudes.</string>
+      <string>You can return to the edit mode of the maze to make it simpler (or even more challenging) or try it again in current maze from start.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
