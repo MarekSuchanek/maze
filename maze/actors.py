@@ -294,6 +294,7 @@ class TeleporterActor(Actor):
     MIN_DIST_GOAL = 5
     MIN_DIST_ACTOR = 5
     SHIVER_DURATION = 0.5
+    MAX_COUNT_SEARCH = 100
 
     async def behavior(self):
         while not self.grid.game_over:
@@ -350,9 +351,13 @@ class TeleporterActor(Actor):
         shape = self.grid.analysis.directions.shape
         row = int(self.row)
         col = int(self.column)
+        count = 0
         while not self.good_teleport_target(row, col):
             row = random.randrange(0, shape[0])
             col = random.randrange(0, shape[1])
+            count += 1
+            if count == self.MAX_COUNT_SEARCH:  # teleportation has failed
+                return int(self.row), int(self.column)
         return row, col
 
     def good_teleport_target(self, row, col):

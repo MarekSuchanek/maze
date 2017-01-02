@@ -125,7 +125,8 @@ Types of dudes (enemies):
 * **Tele del Porto** - He has incalculable abilty to teleport himself just by the force of 
   his own will to random accessible place with probability 20%. His will is usually kinda weak so 
   the place can be closer and also farther to the goal but never closer than 5 steps. Minimal 
-  distance of the teleportation is 5.
+  distance of the teleportation is 5. Teleportation can fail if Tele is unable to pick suitable
+  target within 100 random picks, then he will only shiver.
 * **Scatterbrain** - Total lunetic who escaped asylum. His best friend is chaos so he can choose 
   other direction than is the shortest one with probability 25%.
 
